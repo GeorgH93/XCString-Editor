@@ -76,7 +76,7 @@ return [
                 'enabled' => $_ENV['OPENAI_ENABLED'] ?? false,
                 'api_key' => $_ENV['OPENAI_API_KEY'] ?? '',
                 'base_url' => 'https://api.openai.com/v1', // Standard OpenAI API
-                'models' => $_ENV['OPENAI_MODELS'] ? explode(',', $_ENV['OPENAI_MODELS']) : [
+                'models' => !empty($_ENV['OPENAI_MODELS']) ? explode(',', $_ENV['OPENAI_MODELS']) : [
                     'gpt-4o',
                     'gpt-4o-mini',
                     'gpt-4-turbo',
@@ -87,7 +87,7 @@ return [
                 'enabled' => $_ENV['ANTHROPIC_ENABLED'] ?? false,
                 'api_key' => $_ENV['ANTHROPIC_API_KEY'] ?? '',
                 'base_url' => 'https://api.anthropic.com',
-                'models' => $_ENV['ANTHROPIC_MODELS'] ? explode(',', $_ENV['ANTHROPIC_MODELS']) : [
+                'models' => !empty($_ENV['ANTHROPIC_MODELS']) ? explode(',', $_ENV['ANTHROPIC_MODELS']) : [
                     'claude-3-5-sonnet-20241022',
                     'claude-3-5-haiku-20241022',
                     'claude-3-opus-20240229',
@@ -99,7 +99,7 @@ return [
                 'enabled' => $_ENV['OPENAI_COMPATIBLE_ENABLED'] ?? false,
                 'api_key' => $_ENV['OPENAI_COMPATIBLE_API_KEY'] ?? '',
                 'base_url' => $_ENV['OPENAI_COMPATIBLE_BASE_URL'] ?? '', // e.g., 'https://api.groq.com/openai/v1'
-                'models' => $_ENV['OPENAI_COMPATIBLE_MODELS'] ? explode(',', $_ENV['OPENAI_COMPATIBLE_MODELS']) : [
+                'models' => !empty($_ENV['OPENAI_COMPATIBLE_MODELS']) ? explode(',', $_ENV['OPENAI_COMPATIBLE_MODELS']) : [
                     'llama-3.1-70b-versatile',
                     'llama-3.1-8b-instant',
                     'mixtral-8x7b-32768'

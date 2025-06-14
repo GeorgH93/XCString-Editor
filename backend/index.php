@@ -1,4 +1,8 @@
 <?php
+// Prevent warnings from breaking JSON output
+error_reporting(E_ERROR | E_PARSE);
+ini_set('display_errors', 0);
+
 session_start();
 
 header('Content-Type: application/json');
@@ -11,7 +15,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // Load configuration and classes
-$config = require '../config.php';
+$configPath = file_exists('../config.php') ? '../config.php' : __DIR__ . '/../config.php';
+if (!file_exists($configPath)) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Configuration file not found']);
+    exit;
+}
+$config = require $configPath;
 require_once 'Database.php';
 require_once 'Auth.php';
 require_once 'FileManager.php';
