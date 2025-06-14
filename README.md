@@ -2,6 +2,12 @@
 
 A web-based editor for Apple's .xcstrings localization files with user management and file sharing capabilities.
 
+## License
+
+This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0) - see the [LICENSE](LICENSE) file for details.
+
+The AGPL-3.0 ensures that any modifications or improvements to this software, including when used as a web service, must be made available under the same license terms.
+
 ## Features
 
 ### Core Features
