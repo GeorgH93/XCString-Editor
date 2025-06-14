@@ -186,15 +186,24 @@ header {
 
 .string-entry-header {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
+    justify-content: flex-end;
     margin-bottom: 15px;
-    gap: 15px;
 }
 
-.string-entry-header .form-group {
-    flex: 1;
+.key-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.key-group label {
     margin: 0;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.key-group input {
+    flex: 1;
 }
 
 .string-key {
@@ -311,6 +320,10 @@ header {
 .auth-form h2 {
     margin-bottom: 20px;
     text-align: center;
+}
+
+.button-spacing {
+    height: 10px;
 }
 
 .auth-switch {
