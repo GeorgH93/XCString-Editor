@@ -33,6 +33,21 @@ class XCStringEditor {
         this.newFileBtn = document.getElementById('newFileBtn');
         this.editorTitle = document.getElementById('editorTitle');
         this.fileInfo = document.getElementById('fileInfo');
+        
+        // Notification and modal elements
+        this.notifications = document.getElementById('notifications');
+        this.confirmModal = document.getElementById('confirmModal');
+        this.confirmTitle = document.getElementById('confirmTitle');
+        this.confirmMessage = document.getElementById('confirmMessage');
+        this.confirmOk = document.getElementById('confirmOk');
+        this.confirmCancel = document.getElementById('confirmCancel');
+        this.inputModal = document.getElementById('inputModal');
+        this.inputTitle = document.getElementById('inputTitle');
+        this.inputLabel = document.getElementById('inputLabel');
+        this.inputField = document.getElementById('inputField');
+        this.inputForm = document.getElementById('inputForm');
+        this.inputCancel = document.getElementById('inputCancel');
+        this.closeInputModal = document.getElementById('closeInputModal');
     }
 
     setupEventListeners() {
@@ -72,6 +87,23 @@ class XCStringEditor {
         this.authModal.addEventListener('click', (e) => {
             if (e.target === this.authModal) {
                 this.hideAuthModal();
+            }
+        });
+        
+        // Confirmation modal listeners
+        this.confirmCancel.addEventListener('click', () => this.hideConfirmModal());
+        this.confirmModal.addEventListener('click', (e) => {
+            if (e.target === this.confirmModal) {
+                this.hideConfirmModal();
+            }
+        });
+        
+        // Input modal listeners
+        this.inputCancel.addEventListener('click', () => this.hideInputModal());
+        this.closeInputModal.addEventListener('click', () => this.hideInputModal());
+        this.inputModal.addEventListener('click', (e) => {
+            if (e.target === this.inputModal) {
+                this.hideInputModal();
             }
         });
     }
@@ -411,7 +443,11 @@ class XCStringEditor {
     }
 
     async deleteFile(fileId) {
-        if (!confirm('Are you sure you want to delete this file?')) return;
+        const shouldDelete = await this.showConfirmDialog(
+            'Delete File', 
+            'Are you sure you want to delete this file? This action cannot be undone.'
+        );
+        if (!shouldDelete) return;
         
         try {
             const response = await fetch(`/backend/index.php/files/${fileId}`, {
@@ -452,9 +488,16 @@ class XCStringEditor {
     async saveCurrentFile() {
         if (!this.currentUser || !this.data) return;
         
-        const fileName = this.currentFileId ? 
-            this.editorTitle.textContent : 
-            prompt('Enter file name:', 'Untitled.xcstrings');
+        let fileName;
+        if (this.currentFileId) {
+            fileName = this.editorTitle.textContent;
+        } else {
+            fileName = await this.showInputDialog(
+                'Save File', 
+                'Enter file name:', 
+                'Untitled.xcstrings'
+            );
+        }
         
         if (!fileName) return;
         
@@ -524,15 +567,15 @@ class XCStringEditor {
                 this.saveBtn.style.display = 'inline-block';
                 this.shareBtn.style.display = 'inline-block';
                 this.loadUserFiles(); // Refresh file list
-                alert('File saved successfully!');
+                this.showNotification('File saved successfully!', 'success');
             } else {
-                alert('Failed to save file: ' + result.error);
+                this.showNotification('Failed to save file: ' + result.error, 'error');
                 this.fileInfo.textContent = 'Uploaded file (not saved)';
                 this.saveBtn.style.display = 'inline-block';
                 this.shareBtn.style.display = 'none';
             }
         } catch (error) {
-            alert('Error saving file: ' + error.message);
+            this.showNotification('Error saving file: ' + error.message, 'error');
             this.fileInfo.textContent = 'Uploaded file (not saved)';
             this.saveBtn.style.display = 'inline-block';
             this.shareBtn.style.display = 'none';
@@ -542,10 +585,16 @@ class XCStringEditor {
     async shareCurrentFile() {
         if (!this.currentFileId) return;
         
-        const email = prompt('Enter email address to share with:');
+        const email = await this.showInputDialog(
+            'Share File', 
+            'Enter email address to share with:'
+        );
         if (!email) return;
         
-        const canEdit = confirm('Allow editing? (Cancel for read-only access)');
+        const canEdit = await this.showConfirmDialog(
+            'Share Permissions', 
+            'Allow editing? (Choose "Cancel" for read-only access)'
+        );
         
         try {
             const response = await fetch('/backend/index.php/files/share', {
@@ -614,7 +663,10 @@ class XCStringEditor {
                 
                 // For authenticated users, offer to save immediately
                 if (this.currentUser) {
-                    const shouldSave = confirm('Save this file to your account?');
+                    const shouldSave = await this.showConfirmDialog(
+                        'Save File', 
+                        'Save this file to your account?'
+                    );
                     if (shouldSave) {
                         await this.saveUploadedFile(file.name, content);
                     } else {
@@ -630,10 +682,10 @@ class XCStringEditor {
                 
                 this.renderEditor();
             } else {
-                alert('Error parsing file: ' + result.error);
+                this.showNotification('Error parsing file: ' + result.error, 'error');
             }
         } catch (error) {
-            alert('Error processing file: ' + error.message);
+            this.showNotification('Error processing file: ' + error.message, 'error');
         }
     }
 
@@ -667,14 +719,13 @@ class XCStringEditor {
 
         entryDiv.innerHTML = `
             <div class="string-entry-header">
-                <div class="string-key">${key}</div>
-                <button class="btn btn-danger btn-sm delete-string-btn" onclick="editor.deleteString('${key}')">Delete</button>
-            </div>
-            <div class="string-details">
                 <div class="form-group">
                     <label>Key:</label>
                     <input type="text" class="string-key-input" value="${key}" onchange="editor.updateStringKey('${key}', this.value)">
                 </div>
+                <button class="btn btn-danger btn-sm delete-string-btn" onclick="editor.deleteString('${key}')">Delete</button>
+            </div>
+            <div class="string-details">
                 <div class="form-group">
                     <label>Comment:</label>
                     <textarea class="string-comment-input" onchange="editor.updateStringComment('${key}', this.value)">${comment}</textarea>
@@ -837,6 +888,101 @@ class XCStringEditor {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+    }
+
+    // Notification System
+    showNotification(message, type = 'info', duration = 5000) {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.innerHTML = `
+            <span>${message}</span>
+            <button class="close-btn" onclick="this.parentElement.remove()">&times;</button>
+        `;
+        
+        this.notifications.appendChild(notification);
+        
+        // Auto-hide after duration
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, duration);
+        
+        // Click to dismiss
+        notification.addEventListener('click', () => notification.remove());
+    }
+
+    // Confirmation Modal
+    showConfirmDialog(title, message) {
+        return new Promise((resolve) => {
+            this.confirmTitle.textContent = title;
+            this.confirmMessage.textContent = message;
+            this.confirmModal.style.display = 'block';
+            
+            const handleOk = () => {
+                this.hideConfirmModal();
+                resolve(true);
+            };
+            
+            const handleCancel = () => {
+                this.hideConfirmModal();
+                resolve(false);
+            };
+            
+            // Remove previous listeners
+            this.confirmOk.replaceWith(this.confirmOk.cloneNode(true));
+            this.confirmOk = document.getElementById('confirmOk');
+            this.confirmCancel.replaceWith(this.confirmCancel.cloneNode(true));
+            this.confirmCancel = document.getElementById('confirmCancel');
+            
+            // Add new listeners
+            this.confirmOk.addEventListener('click', handleOk);
+            this.confirmCancel.addEventListener('click', handleCancel);
+        });
+    }
+
+    hideConfirmModal() {
+        this.confirmModal.style.display = 'none';
+    }
+
+    // Input Modal
+    showInputDialog(title, label, defaultValue = '') {
+        return new Promise((resolve) => {
+            this.inputTitle.textContent = title;
+            this.inputLabel.textContent = label;
+            this.inputField.value = defaultValue;
+            this.inputModal.style.display = 'block';
+            this.inputField.focus();
+            
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                const value = this.inputField.value.trim();
+                if (value) {
+                    this.hideInputModal();
+                    resolve(value);
+                }
+            };
+            
+            const handleCancel = () => {
+                this.hideInputModal();
+                resolve(null);
+            };
+            
+            // Remove previous listeners
+            this.inputForm.replaceWith(this.inputForm.cloneNode(true));
+            this.inputForm = document.getElementById('inputForm');
+            this.inputCancel.replaceWith(this.inputCancel.cloneNode(true));
+            this.inputCancel = document.getElementById('inputCancel');
+            
+            // Add new listeners
+            this.inputForm.addEventListener('submit', handleSubmit);
+            this.inputCancel.addEventListener('click', handleCancel);
+        });
+    }
+
+    hideInputModal() {
+        this.inputModal.style.display = 'none';
+        this.inputField.value = '';
     }
 }
 

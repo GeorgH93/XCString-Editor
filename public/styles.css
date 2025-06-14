@@ -186,9 +186,15 @@ header {
 
 .string-entry-header {
     display: flex;
-    justify-content: between;
-    align-items: center;
+    justify-content: space-between;
+    align-items: flex-end;
     margin-bottom: 15px;
+    gap: 15px;
+}
+
+.string-entry-header .form-group {
+    flex: 1;
+    margin: 0;
 }
 
 .string-key {
@@ -589,4 +595,78 @@ header {
     .file-item-actions {
         justify-content: center;
     }
+}
+
+/* Notification System */
+.notifications {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 400px;
+}
+
+.notification {
+    padding: 15px 20px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    animation: slideIn 0.3s ease-out;
+    cursor: pointer;
+    position: relative;
+}
+
+.notification.success {
+    background-color: #34c759;
+}
+
+.notification.error {
+    background-color: #ff3b30;
+}
+
+.notification.info {
+    background-color: #007aff;
+}
+
+.notification.warning {
+    background-color: #ff9500;
+}
+
+.notification .close-btn {
+    position: absolute;
+    top: 5px;
+    right: 10px;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Modal Actions */
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+.modal-actions .btn {
+    min-width: 80px;
 }
