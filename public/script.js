@@ -444,7 +444,7 @@ class XCStringEditor {
             const result = await response.json();
             
             if (result.success) {
-                this.data = JSON.parse(result.file.content);
+                this.data = this.fixParsedData(JSON.parse(result.file.content));
                 this.currentFileId = fileId;
                 this.isModified = false;
                 this.editorTitle.textContent = result.file.name;
@@ -677,7 +677,7 @@ class XCStringEditor {
 
             const result = await response.json();
             if (result.success) {
-                this.data = result.data;
+                this.data = this.fixParsedData(result.data);
                 this.currentFileId = null;
                 this.isModified = false;
                 this.editorTitle.textContent = file.name;
@@ -1461,8 +1461,6 @@ class XCStringEditor {
             
             // Now set the value
             this.data.strings[stringKey].localizations[lang].stringUnit.value = value;
-            console.log(`Updated localization value for ${stringKey}[${lang}] = "${value}"`);
-            console.log('Current data structure:', this.data.strings[stringKey].localizations[lang]);
             this.markModified();
         }
     }
@@ -1492,8 +1490,6 @@ class XCStringEditor {
                         value: ''
                     }
                 };
-                console.log(`Added localization ${lang} to ${stringKey}`);
-                console.log('Full string data after adding:', JSON.stringify(this.data.strings[stringKey], null, 2));
                 this.markModified();
                 this.updateStringEntry(stringKey);
                 this.showNotification(`Added localization for "${lang}"`, 'success');
@@ -1796,10 +1792,6 @@ class XCStringEditor {
 
     async exportFile() {
         try {
-            // Debug: Log the data being sent to backend
-            console.log('Exporting data structure:', this.data);
-            console.log('Exporting data JSON:', JSON.stringify(this.data, null, 2));
-            
             const response = await fetch('/backend/index.php/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1942,6 +1934,24 @@ class XCStringEditor {
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
+    }
+
+    // Fix data structure issues from PHP parsing
+    fixParsedData(data) {
+        if (!data || !data.strings) return data;
+        
+        // Fix each string's localizations if they're arrays instead of objects
+        Object.keys(data.strings).forEach(stringKey => {
+            const stringData = data.strings[stringKey];
+            if (stringData.localizations && Array.isArray(stringData.localizations)) {
+                // Convert empty array [] back to empty object {}
+                if (stringData.localizations.length === 0) {
+                    stringData.localizations = {};
+                }
+            }
+        });
+        
+        return data;
     }
 
     // Debug function for testing data integrity
