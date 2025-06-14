@@ -1015,6 +1015,11 @@ class XCStringEditor {
         
         valueInput.addEventListener('change', (e) => {
             this.updateLocalizationValue(stringKey, lang, e.target.value);
+            this.autoUpdateState(stringKey, lang, e.target.value, stateSelect);
+        });
+        
+        valueInput.addEventListener('input', (e) => {
+            this.autoUpdateState(stringKey, lang, e.target.value, stateSelect, true);
         });
         
         stateSelect.addEventListener('change', (e) => {
@@ -1138,6 +1143,11 @@ class XCStringEditor {
         
         valueInput.addEventListener('change', (e) => {
             this.updateVariationValue(stringKey, lang, variationType, variationKey, e.target.value);
+            this.autoUpdateVariationState(stringKey, lang, variationType, variationKey, e.target.value, stateSelect);
+        });
+        
+        valueInput.addEventListener('input', (e) => {
+            this.autoUpdateVariationState(stringKey, lang, variationType, variationKey, e.target.value, stateSelect, true);
         });
         
         stateSelect.addEventListener('change', (e) => {
@@ -1433,6 +1443,56 @@ class XCStringEditor {
                 this.renderEditor();
             }
         }
+    }
+
+    autoUpdateState(stringKey, lang, value, stateSelect, isInputEvent = false) {
+        const trimmedValue = value ? value.trim() : '';
+        const newState = trimmedValue === '' ? 'new' : 'translated';
+        
+        // Update the select dropdown
+        stateSelect.value = newState;
+        
+        // Update the data only on change events, not input events
+        if (!isInputEvent && this.data.strings[stringKey] && this.data.strings[stringKey].localizations[lang]) {
+            this.data.strings[stringKey].localizations[lang].stringUnit.state = newState;
+            this.markModifiedSilent();
+        }
+    }
+
+    autoUpdateVariationState(stringKey, lang, variationType, variationKey, value, stateSelect, isInputEvent = false) {
+        const trimmedValue = value ? value.trim() : '';
+        const newState = trimmedValue === '' ? 'new' : 'translated';
+        
+        // Update the select dropdown
+        stateSelect.value = newState;
+        
+        // Update the data only on change events, not input events
+        if (!isInputEvent) {
+            const localization = this.data.strings[stringKey].localizations[lang];
+            if (localization && localization.variations && 
+                localization.variations[variationType] && 
+                localization.variations[variationType][variationKey]) {
+                
+                if (!localization.variations[variationType][variationKey].stringUnit) {
+                    localization.variations[variationType][variationKey].stringUnit = { state: 'new', value: '' };
+                }
+                localization.variations[variationType][variationKey].stringUnit.state = newState;
+                this.markModifiedSilent();
+            }
+        }
+    }
+
+    markModifiedSilent() {
+        this.isModified = true;
+        if (this.fileInfo) {
+            this.fileInfo.textContent = this.fileInfo.textContent.replace(' (saved)', '') + ' (modified)';
+        }
+        
+        // Debounced progress update to avoid excessive calls
+        clearTimeout(this.progressUpdateTimeout);
+        this.progressUpdateTimeout = setTimeout(() => {
+            this.updateProgressIndicators();
+        }, 500);
     }
 
     markModified() {
