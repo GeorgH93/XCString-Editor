@@ -18,20 +18,47 @@ body {
 }
 
 header {
-    text-align: center;
     margin-bottom: 40px;
 }
 
-header h1 {
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.header-left h1 {
     font-size: 2.5rem;
     font-weight: 600;
     margin-bottom: 10px;
     color: #1d1d1f;
+    margin: 0;
 }
 
-header p {
+.header-left p {
     font-size: 1.1rem;
     color: #86868b;
+    margin: 5px 0 0 0;
+}
+
+.auth-section {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    color: #1d1d1f;
+}
+
+.user-name {
+    font-weight: 500;
 }
 
 .upload-section {
@@ -233,9 +260,183 @@ header p {
     font-size: 0.8rem;
 }
 
+/* Modal Styles */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background-color: #fff;
+    margin: 5% auto;
+    padding: 30px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 400px;
+    position: relative;
+}
+
+.close {
+    position: absolute;
+    right: 15px;
+    top: 15px;
+    font-size: 28px;
+    font-weight: bold;
+    color: #aaa;
+    cursor: pointer;
+}
+
+.close:hover {
+    color: #000;
+}
+
+.auth-form h2 {
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.auth-switch {
+    text-align: center;
+    margin-top: 15px;
+    font-size: 0.9rem;
+}
+
+.auth-switch a {
+    color: #0071e3;
+    text-decoration: none;
+}
+
+.auth-switch a:hover {
+    text-decoration: underline;
+}
+
+/* File Management Styles */
+.file-management-section {
+    background-color: #fff;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    margin-bottom: 30px;
+}
+
+.tabs {
+    display: flex;
+    border-bottom: 1px solid #e5e5e7;
+    margin-bottom: 30px;
+}
+
+.tab-button {
+    padding: 12px 20px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #86868b;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.tab-button.active {
+    color: #0071e3;
+    border-bottom-color: #0071e3;
+}
+
+.tab-button:hover {
+    color: #0071e3;
+}
+
+.tab-pane {
+    display: none;
+}
+
+.tab-pane.active {
+    display: block;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.section-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.files-list {
+    display: grid;
+    gap: 15px;
+}
+
+.file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    border: 1px solid #e5e5e7;
+    border-radius: 8px;
+    background-color: #fbfbfd;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.file-item:hover {
+    border-color: #0071e3;
+    background-color: #f6f9ff;
+}
+
+.file-item-info {
+    flex: 1;
+}
+
+.file-item-name {
+    font-weight: 500;
+    color: #1d1d1f;
+    margin-bottom: 5px;
+}
+
+.file-item-meta {
+    font-size: 0.8rem;
+    color: #86868b;
+}
+
+.file-item-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+}
+
+.editor-header-left {
+    flex: 1;
+}
+
+.file-info {
+    font-size: 0.9rem;
+    color: #86868b;
+    margin-top: 5px;
+}
+
 @media (max-width: 768px) {
     .container {
         padding: 15px;
+    }
+    
+    .header-content {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
     }
     
     .editor-header {
@@ -255,5 +456,24 @@ header p {
     .localization-entry {
         grid-template-columns: 1fr;
         gap: 5px;
+    }
+    
+    .tabs {
+        flex-wrap: wrap;
+    }
+    
+    .tab-button {
+        flex: 1;
+        min-width: 100px;
+    }
+    
+    .file-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    
+    .file-item-actions {
+        justify-content: center;
     }
 }

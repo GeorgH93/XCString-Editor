@@ -9,12 +9,94 @@
 <body>
     <div class="container">
         <header>
-            <h1>XCString Editor</h1>
-            <p>Upload and edit .xcstrings files</p>
+            <div class="header-content">
+                <div class="header-left">
+                    <h1>XCString Editor</h1>
+                    <p>Upload and edit .xcstrings files</p>
+                </div>
+                <div class="header-right">
+                    <div id="authSection" class="auth-section">
+                        <!-- Auth buttons will be dynamically added here -->
+                    </div>
+                </div>
+            </div>
         </header>
 
+        <!-- Authentication Modal -->
+        <div id="authModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <span class="close" id="closeModal">&times;</span>
+                
+                <div id="loginForm" class="auth-form">
+                    <h2>Login</h2>
+                    <form id="loginFormElement">
+                        <div class="form-group">
+                            <label>Email:</label>
+                            <input type="email" id="loginEmail" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Password:</label>
+                            <input type="password" id="loginPassword" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Login</button>
+                        <p class="auth-switch">Don't have an account? <a href="#" id="showRegister">Register</a></p>
+                    </form>
+                </div>
+                
+                <div id="registerForm" class="auth-form" style="display: none;">
+                    <h2>Register</h2>
+                    <form id="registerFormElement">
+                        <div class="form-group">
+                            <label>Name:</label>
+                            <input type="text" id="registerName" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Email:</label>
+                            <input type="email" id="registerEmail" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Password:</label>
+                            <input type="password" id="registerPassword" required minlength="6">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Register</button>
+                        <p class="auth-switch">Already have an account? <a href="#" id="showLogin">Login</a></p>
+                    </form>
+                </div>
+            </div>
+        </div>
+
         <main>
-            <section class="upload-section">
+            <!-- File Management Section (for authenticated users) -->
+            <section id="fileManagementSection" class="file-management-section" style="display: none;">
+                <div class="tabs">
+                    <button class="tab-button active" data-tab="my-files">My Files</button>
+                    <button class="tab-button" data-tab="shared-files">Shared</button>
+                    <button class="tab-button" data-tab="public-files">Public</button>
+                </div>
+                
+                <div class="tab-content">
+                    <div id="my-files" class="tab-pane active">
+                        <div class="section-header">
+                            <h3>My Files</h3>
+                            <button id="newFileBtn" class="btn btn-primary">New File</button>
+                        </div>
+                        <div id="myFilesList" class="files-list"></div>
+                    </div>
+                    
+                    <div id="shared-files" class="tab-pane">
+                        <h3>Shared with Me</h3>
+                        <div id="sharedFilesList" class="files-list"></div>
+                    </div>
+                    
+                    <div id="public-files" class="tab-pane">
+                        <h3>Public Files</h3>
+                        <div id="publicFilesList" class="files-list"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Upload Section (for guest users and new files) -->
+            <section class="upload-section" id="uploadSection">
                 <div class="upload-area" id="uploadArea">
                     <div class="upload-content">
                         <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -29,11 +111,17 @@
                 </div>
             </section>
 
+            <!-- Editor Section -->
             <section class="editor-section" id="editorSection" style="display: none;">
                 <div class="editor-header">
-                    <h2>String Editor</h2>
+                    <div class="editor-header-left">
+                        <h2 id="editorTitle">String Editor</h2>
+                        <div id="fileInfo" class="file-info"></div>
+                    </div>
                     <div class="editor-controls">
                         <button id="addStringBtn" class="btn btn-primary">Add String</button>
+                        <button id="saveBtn" class="btn btn-secondary" style="display: none;">Save</button>
+                        <button id="shareBtn" class="btn btn-secondary" style="display: none;">Share</button>
                         <button id="exportBtn" class="btn btn-secondary">Export</button>
                     </div>
                 </div>
