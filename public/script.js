@@ -34,6 +34,10 @@ class XCStringEditor {
         this.editorTitle = document.getElementById('editorTitle');
         this.fileInfo = document.getElementById('fileInfo');
         
+        // Progress elements
+        this.progressSection = document.getElementById('progressSection');
+        this.progressIndicators = document.getElementById('progressIndicators');
+        
         // Notification and modal elements
         this.notifications = document.getElementById('notifications');
         this.confirmModal = document.getElementById('confirmModal');
@@ -326,6 +330,8 @@ class XCStringEditor {
 
     hideEditor() {
         this.editorSection.style.display = 'none';
+        this.progressSection.style.display = 'none';
+        this.uploadSection.style.display = 'block';
         this.data = null;
         this.isModified = false;
     }
@@ -699,14 +705,149 @@ class XCStringEditor {
     }
 
     renderEditor() {
+        // Show editor and progress sections, hide upload section
         this.editorSection.style.display = 'block';
+        this.progressSection.style.display = 'block';
+        this.uploadSection.style.display = 'none';
+        
         this.stringsContainer.innerHTML = '';
 
         if (this.data && this.data.strings) {
             Object.keys(this.data.strings).forEach(key => {
                 this.renderStringEntry(key, this.data.strings[key]);
             });
+            
+            // Update progress indicators
+            this.updateProgressIndicators();
         }
+    }
+
+    updateProgressIndicators() {
+        if (!this.data || !this.data.strings) return;
+        
+        // Get all languages from all strings
+        const languages = new Set();
+        const sourceLanguage = this.data.sourceLanguage || 'en';
+        
+        Object.values(this.data.strings).forEach(stringData => {
+            if (stringData.localizations) {
+                Object.keys(stringData.localizations).forEach(lang => {
+                    languages.add(lang);
+                });
+            }
+        });
+        
+        // Calculate progress for each language
+        const progressData = Array.from(languages).map(lang => {
+            const totalStrings = Object.keys(this.data.strings).length;
+            let translatedStrings = 0;
+            
+            if (lang === sourceLanguage) {
+                // Source language is always 100%
+                translatedStrings = totalStrings;
+            } else {
+                // Count translated strings for other languages
+                Object.values(this.data.strings).forEach(stringData => {
+                    if (stringData.localizations && stringData.localizations[lang]) {
+                        const localization = stringData.localizations[lang];
+                        
+                        // Check if it's a simple localization or has variations
+                        if (localization.stringUnit) {
+                            // Simple localization - check if it has a value and is translated
+                            if (localization.stringUnit.value && 
+                                localization.stringUnit.value.trim() !== '' &&
+                                localization.stringUnit.state === 'translated') {
+                                translatedStrings++;
+                            }
+                        } else if (localization.variations) {
+                            // Variations - check if at least one variation is translated
+                            let hasTranslatedVariation = false;
+                            Object.values(localization.variations).forEach(variationType => {
+                                Object.values(variationType).forEach(variation => {
+                                    if (variation.stringUnit && 
+                                        variation.stringUnit.value && 
+                                        variation.stringUnit.value.trim() !== '' &&
+                                        variation.stringUnit.state === 'translated') {
+                                        hasTranslatedVariation = true;
+                                    }
+                                });
+                            });
+                            if (hasTranslatedVariation) {
+                                translatedStrings++;
+                            }
+                        }
+                    }
+                });
+            }
+            
+            const percentage = totalStrings > 0 ? Math.round((translatedStrings / totalStrings) * 100) : 0;
+            
+            return {
+                language: lang,
+                percentage: percentage,
+                translatedCount: translatedStrings,
+                totalCount: totalStrings,
+                isSource: lang === sourceLanguage
+            };
+        });
+        
+        // Sort by source language first, then by percentage descending
+        progressData.sort((a, b) => {
+            if (a.isSource) return -1;
+            if (b.isSource) return 1;
+            return b.percentage - a.percentage;
+        });
+        
+        this.renderProgressIndicators(progressData);
+    }
+
+    renderProgressIndicators(progressData) {
+        this.progressIndicators.innerHTML = '';
+        
+        progressData.forEach(data => {
+            const progressItem = document.createElement('div');
+            progressItem.className = 'progress-item';
+            
+            const header = document.createElement('div');
+            header.className = 'progress-item-header';
+            
+            const languageSpan = document.createElement('span');
+            languageSpan.className = 'progress-language';
+            languageSpan.textContent = data.isSource ? `${data.language} (source)` : data.language;
+            
+            const percentageSpan = document.createElement('span');
+            percentageSpan.className = 'progress-percentage';
+            percentageSpan.textContent = `${data.percentage}% (${data.translatedCount}/${data.totalCount})`;
+            
+            header.appendChild(languageSpan);
+            header.appendChild(percentageSpan);
+            
+            const progressBar = document.createElement('div');
+            progressBar.className = 'progress-bar';
+            
+            const progressFill = document.createElement('div');
+            progressFill.className = 'progress-bar-fill';
+            progressFill.style.width = `${data.percentage}%`;
+            
+            // Set color class based on percentage
+            if (data.isSource) {
+                progressFill.classList.add('source');
+            } else if (data.percentage === 100) {
+                progressFill.classList.add('complete');
+            } else if (data.percentage >= 80) {
+                progressFill.classList.add('high');
+            } else if (data.percentage >= 50) {
+                progressFill.classList.add('medium');
+            } else {
+                progressFill.classList.add('low');
+            }
+            
+            progressBar.appendChild(progressFill);
+            progressItem.appendChild(header);
+            progressItem.appendChild(progressBar);
+            
+            this.progressIndicators.appendChild(progressItem);
+        });
     }
 
     renderStringEntry(key, stringData) {
@@ -1299,6 +1440,8 @@ class XCStringEditor {
         if (this.fileInfo) {
             this.fileInfo.textContent = this.fileInfo.textContent.replace(' (saved)', '') + ' (modified)';
         }
+        // Update progress indicators when data changes
+        this.updateProgressIndicators();
     }
 
     async exportFile() {
