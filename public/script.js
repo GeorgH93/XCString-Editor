@@ -38,6 +38,12 @@ class XCStringEditor {
         this.progressSection = document.getElementById('progressSection');
         this.progressIndicators = document.getElementById('progressIndicators');
         
+        // Filter elements
+        this.filterSection = document.getElementById('filterSection');
+        this.filterLanguage = document.getElementById('filterLanguage');
+        this.filterStatus = document.getElementById('filterStatus');
+        this.clearFilterBtn = document.getElementById('clearFilterBtn');
+        
         // Notification and modal elements
         this.notifications = document.getElementById('notifications');
         this.confirmModal = document.getElementById('confirmModal');
@@ -109,6 +115,15 @@ class XCStringEditor {
             if (e.target === this.inputModal) {
                 this.hideInputModal();
             }
+        });
+        
+        // Filter listeners
+        this.filterLanguage.addEventListener('change', () => {
+            this.applyFilter();
+        });
+        
+        this.clearFilterBtn.addEventListener('click', () => {
+            this.clearFilter();
         });
     }
 
@@ -799,6 +814,7 @@ class XCStringEditor {
         });
         
         this.renderProgressIndicators(progressData);
+        this.updateFilterOptions(progressData);
     }
 
     renderProgressIndicators(progressData) {
@@ -847,6 +863,170 @@ class XCStringEditor {
             progressItem.appendChild(progressBar);
             
             this.progressIndicators.appendChild(progressItem);
+        });
+    }
+
+    updateFilterOptions(progressData) {
+        const currentValue = this.filterLanguage.value;
+        
+        // Clear existing options except the first two
+        while (this.filterLanguage.children.length > 2) {
+            this.filterLanguage.removeChild(this.filterLanguage.lastChild);
+        }
+        
+        // Add language-specific options (exclude source language)
+        const sourceLanguage = this.data.sourceLanguage || 'en';
+        progressData.forEach(data => {
+            if (!data.isSource) {
+                const option = document.createElement('option');
+                option.value = data.language;
+                option.textContent = `${data.language} (${data.percentage}% complete)`;
+                this.filterLanguage.appendChild(option);
+            }
+        });
+        
+        // Restore previous selection if still valid
+        if (currentValue && Array.from(this.filterLanguage.options).some(opt => opt.value === currentValue)) {
+            this.filterLanguage.value = currentValue;
+        }
+    }
+
+    applyFilter() {
+        const filterValue = this.filterLanguage.value;
+        
+        if (!filterValue) {
+            this.clearFilter();
+            return;
+        }
+        
+        let hiddenCount = 0;
+        let totalCount = 0;
+        
+        document.querySelectorAll('.string-entry').forEach(entryDiv => {
+            totalCount++;
+            const stringKey = entryDiv.dataset.key;
+            const shouldHide = this.shouldHideEntry(stringKey, filterValue);
+            
+            if (shouldHide) {
+                entryDiv.classList.add('filtered-out');
+                hiddenCount++;
+            } else {
+                entryDiv.classList.remove('filtered-out');
+            }
+            
+            // Set up focus monitoring for auto-show
+            this.setupFocusMonitoring(entryDiv);
+        });
+        
+        // Update UI state
+        this.updateFilterStatus(filterValue, hiddenCount, totalCount);
+        this.clearFilterBtn.style.display = 'inline-block';
+        this.filterStatus.classList.add('active');
+    }
+
+    shouldHideEntry(stringKey, filterLanguage) {
+        const stringData = this.data.strings[stringKey];
+        if (!stringData || !stringData.localizations) return false;
+        
+        const sourceLanguage = this.data.sourceLanguage || 'en';
+        
+        if (filterLanguage === 'any') {
+            // Show entries that are missing translations in ANY language
+            const allLanguages = new Set();
+            Object.values(this.data.strings).forEach(str => {
+                if (str.localizations) {
+                    Object.keys(str.localizations).forEach(lang => allLanguages.add(lang));
+                }
+            });
+            
+            // Check if this string is missing in any non-source language
+            for (const lang of allLanguages) {
+                if (lang !== sourceLanguage) {
+                    if (!this.isTranslated(stringData, lang)) {
+                        return false; // Show this entry (it's incomplete)
+                    }
+                }
+            }
+            return true; // Hide this entry (it's complete in all languages)
+        } else {
+            // Show entries that are incomplete for specific language
+            return this.isTranslated(stringData, filterLanguage);
+        }
+    }
+
+    isTranslated(stringData, language) {
+        if (!stringData.localizations || !stringData.localizations[language]) {
+            return false; // No localization exists
+        }
+        
+        const localization = stringData.localizations[language];
+        
+        if (localization.stringUnit) {
+            // Simple localization
+            return localization.stringUnit.state === 'translated' && 
+                   localization.stringUnit.value && 
+                   localization.stringUnit.value.trim() !== '';
+        } else if (localization.variations) {
+            // Variations - check if at least one variation is translated
+            let hasTranslation = false;
+            Object.values(localization.variations).forEach(variationType => {
+                Object.values(variationType).forEach(variation => {
+                    if (variation.stringUnit && 
+                        variation.stringUnit.state === 'translated' &&
+                        variation.stringUnit.value && 
+                        variation.stringUnit.value.trim() !== '') {
+                        hasTranslation = true;
+                    }
+                });
+            });
+            return hasTranslation;
+        }
+        
+        return false;
+    }
+
+    setupFocusMonitoring(entryDiv) {
+        const inputs = entryDiv.querySelectorAll('input[type="text"], textarea');
+        
+        inputs.forEach(input => {
+            input.addEventListener('focus', () => {
+                entryDiv.classList.add('has-focused-input');
+            });
+            
+            input.addEventListener('blur', () => {
+                // Small delay to allow for focus to move to another input in the same entry
+                setTimeout(() => {
+                    const hasFocusedInput = Array.from(inputs).some(inp => inp === document.activeElement);
+                    if (!hasFocusedInput) {
+                        entryDiv.classList.remove('has-focused-input');
+                    }
+                }, 100);
+            });
+        });
+    }
+
+    updateFilterStatus(filterLanguage, hiddenCount, totalCount) {
+        const visibleCount = totalCount - hiddenCount;
+        let statusText = '';
+        
+        if (filterLanguage === 'any') {
+            statusText = `Showing ${visibleCount} of ${totalCount} entries with incomplete translations`;
+        } else {
+            statusText = `Showing ${visibleCount} of ${totalCount} entries incomplete for ${filterLanguage}`;
+        }
+        
+        this.filterStatus.textContent = statusText;
+    }
+
+    clearFilter() {
+        this.filterLanguage.value = '';
+        this.clearFilterBtn.style.display = 'none';
+        this.filterStatus.textContent = '';
+        this.filterStatus.classList.remove('active');
+        
+        // Show all entries
+        document.querySelectorAll('.string-entry').forEach(entryDiv => {
+            entryDiv.classList.remove('filtered-out', 'has-focused-input');
         });
     }
 
@@ -1492,6 +1672,10 @@ class XCStringEditor {
         clearTimeout(this.progressUpdateTimeout);
         this.progressUpdateTimeout = setTimeout(() => {
             this.updateProgressIndicators();
+            // Reapply filter if one is active
+            if (this.filterLanguage.value) {
+                this.applyFilter();
+            }
         }, 500);
     }
 
@@ -1502,6 +1686,10 @@ class XCStringEditor {
         }
         // Update progress indicators when data changes
         this.updateProgressIndicators();
+        // Reapply filter if one is active
+        if (this.filterLanguage && this.filterLanguage.value) {
+            this.applyFilter();
+        }
     }
 
     async exportFile() {

@@ -160,6 +160,21 @@
                     </div>
                 </div>
                 
+                <!-- Filter Section -->
+                <div class="filter-section" id="filterSection">
+                    <div class="filter-header">
+                        <h4>Filter Incomplete Translations</h4>
+                        <button id="clearFilterBtn" class="btn btn-secondary btn-sm" style="display: none;">Clear Filter</button>
+                    </div>
+                    <div class="filter-controls">
+                        <select id="filterLanguage" class="filter-select">
+                            <option value="">No Filter</option>
+                            <option value="any">Any Language (missing translations)</option>
+                        </select>
+                        <span id="filterStatus" class="filter-status"></span>
+                    </div>
+                </div>
+                
                 <div class="strings-container" id="stringsContainer">
                     <!-- String entries will be dynamically added here -->
                 </div>
