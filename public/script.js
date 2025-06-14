@@ -717,43 +717,131 @@ class XCStringEditor {
         const comment = stringData.comment || '';
         const localizations = stringData.localizations || {};
 
-        entryDiv.innerHTML = `
-            <div class="string-entry-header">
-                <input type="text" class="string-key-input" value="${key}" onchange="editor.updateStringKey('${key}', this.value)" placeholder="String key">
-                <button class="btn btn-danger btn-sm delete-string-btn" onclick="editor.deleteString('${key}')">Delete</button>
-            </div>
-            <div class="string-details">
-                <div class="comment-group">
-                    <label>Comment</label>
-                    <input type="text" class="string-comment-input" value="${comment}" onchange="editor.updateStringComment('${key}', this.value)" placeholder="comment">
-                </div>
-                <div class="form-group">
-                    <label>Localizations:</label>
-                    <div class="localizations" data-key="${key}">
-                        ${this.renderLocalizations(key, localizations)}
-                    </div>
-                    <button class="btn btn-secondary add-localization-btn" onclick="editor.addLocalization('${key}')">Add Localization</button>
-                </div>
-            </div>
-        `;
+        // Create the structure using DOM methods (safer for special characters)
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'string-entry-header';
+        
+        const keyInput = document.createElement('input');
+        keyInput.type = 'text';
+        keyInput.className = 'string-key-input';
+        keyInput.value = key; // Set value directly (no escaping needed)
+        keyInput.placeholder = 'String key';
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn btn-danger btn-sm delete-string-btn';
+        deleteBtn.textContent = 'Delete';
+        
+        headerDiv.appendChild(keyInput);
+        headerDiv.appendChild(deleteBtn);
+        
+        const detailsDiv = document.createElement('div');
+        detailsDiv.className = 'string-details';
+        
+        const commentGroup = document.createElement('div');
+        commentGroup.className = 'comment-group';
+        
+        const commentLabel = document.createElement('label');
+        commentLabel.textContent = 'Comment';
+        
+        const commentInput = document.createElement('input');
+        commentInput.type = 'text';
+        commentInput.className = 'string-comment-input';
+        commentInput.value = comment; // Set value directly (no escaping needed)
+        commentInput.placeholder = 'comment';
+        
+        commentGroup.appendChild(commentLabel);
+        commentGroup.appendChild(commentInput);
+        
+        const localizationsGroup = document.createElement('div');
+        localizationsGroup.className = 'form-group';
+        
+        const localizationsLabel = document.createElement('label');
+        localizationsLabel.textContent = 'Localizations:';
+        
+        const localizationsDiv = document.createElement('div');
+        localizationsDiv.className = 'localizations';
+        localizationsDiv.dataset.key = key;
+        this.renderLocalizations(localizationsDiv, key, localizations);
+        
+        const addLocalizationBtn = document.createElement('button');
+        addLocalizationBtn.className = 'btn btn-secondary add-localization-btn';
+        addLocalizationBtn.textContent = 'Add Localization';
+        
+        localizationsGroup.appendChild(localizationsLabel);
+        localizationsGroup.appendChild(localizationsDiv);
+        localizationsGroup.appendChild(addLocalizationBtn);
+        
+        detailsDiv.appendChild(commentGroup);
+        detailsDiv.appendChild(localizationsGroup);
+        
+        entryDiv.appendChild(headerDiv);
+        entryDiv.appendChild(detailsDiv);
+
+        // Add event listeners
+        keyInput.addEventListener('change', (e) => {
+            this.updateStringKey(key, e.target.value);
+        });
+
+        deleteBtn.addEventListener('click', () => {
+            this.deleteString(key);
+        });
+
+        commentInput.addEventListener('change', (e) => {
+            this.updateStringComment(key, e.target.value);
+        });
+
+        addLocalizationBtn.addEventListener('click', () => {
+            this.addLocalization(key);
+        });
 
         this.stringsContainer.appendChild(entryDiv);
     }
 
-    renderLocalizations(stringKey, localizations) {
-        let html = '';
+    renderLocalizations(container, stringKey, localizations) {
+        // Clear existing content
+        container.innerHTML = '';
+        
         Object.keys(localizations).forEach(lang => {
             const localization = localizations[lang];
             const value = localization.stringUnit ? localization.stringUnit.value : '';
-            html += `
-                <div class="localization-entry">
-                    <input type="text" value="${lang}" onchange="editor.updateLocalizationLang('${stringKey}', '${lang}', this.value)" placeholder="Language">
-                    <input type="text" value="${value}" onchange="editor.updateLocalizationValue('${stringKey}', '${lang}', this.value)" placeholder="Translation">
-                    <button class="btn btn-danger btn-sm" onclick="editor.deleteLocalization('${stringKey}', '${lang}')">×</button>
-                </div>
-            `;
+            
+            // Create localization entry using DOM methods
+            const entryDiv = document.createElement('div');
+            entryDiv.className = 'localization-entry';
+            
+            const langInput = document.createElement('input');
+            langInput.type = 'text';
+            langInput.value = lang; // Direct assignment handles quotes safely
+            langInput.placeholder = 'Language';
+            
+            const valueInput = document.createElement('input');
+            valueInput.type = 'text';
+            valueInput.value = value; // Direct assignment handles quotes safely
+            valueInput.placeholder = 'Translation';
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn btn-danger btn-sm';
+            deleteBtn.textContent = '×';
+            
+            // Add event listeners
+            langInput.addEventListener('change', (e) => {
+                this.updateLocalizationLang(stringKey, lang, e.target.value);
+            });
+            
+            valueInput.addEventListener('change', (e) => {
+                this.updateLocalizationValue(stringKey, lang, e.target.value);
+            });
+            
+            deleteBtn.addEventListener('click', () => {
+                this.deleteLocalization(stringKey, lang);
+            });
+            
+            entryDiv.appendChild(langInput);
+            entryDiv.appendChild(valueInput);
+            entryDiv.appendChild(deleteBtn);
+            
+            container.appendChild(entryDiv);
         });
-        return html;
     }
 
     addNewString() {
@@ -980,6 +1068,17 @@ class XCStringEditor {
     hideInputModal() {
         this.inputModal.style.display = 'none';
         this.inputField.value = '';
+    }
+
+    // Utility function to escape HTML attributes
+    escapeHtml(text) {
+        if (!text) return '';
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 }
 
