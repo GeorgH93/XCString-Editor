@@ -767,9 +767,20 @@ class XCStringEditor {
         addLocalizationBtn.className = 'btn btn-secondary add-localization-btn';
         addLocalizationBtn.textContent = 'Add Localization';
         
+        const addVariationLocalizationBtn = document.createElement('button');
+        addVariationLocalizationBtn.className = 'btn btn-secondary add-localization-btn';
+        addVariationLocalizationBtn.textContent = 'Add with Variations';
+        
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.display = 'flex';
+        buttonContainer.style.gap = '10px';
+        buttonContainer.style.marginTop = '10px';
+        buttonContainer.appendChild(addLocalizationBtn);
+        buttonContainer.appendChild(addVariationLocalizationBtn);
+        
         localizationsGroup.appendChild(localizationsLabel);
         localizationsGroup.appendChild(localizationsDiv);
-        localizationsGroup.appendChild(addLocalizationBtn);
+        localizationsGroup.appendChild(buttonContainer);
         
         detailsDiv.appendChild(commentGroup);
         detailsDiv.appendChild(localizationsGroup);
@@ -794,12 +805,21 @@ class XCStringEditor {
             await this.addLocalization(key);
         });
 
+        addVariationLocalizationBtn.addEventListener('click', async () => {
+            await this.addLocalizationWithVariations(key);
+        });
+
         this.stringsContainer.appendChild(entryDiv);
     }
 
     renderLocalizations(container, stringKey, localizations) {
         // Clear existing content
         container.innerHTML = '';
+        
+        // Handle undefined or null localizations
+        if (!localizations || typeof localizations !== 'object') {
+            return;
+        }
         
         Object.keys(localizations).forEach(lang => {
             const localization = localizations[lang];
@@ -983,8 +1003,8 @@ class XCStringEditor {
             this.updateVariationState(stringKey, lang, variationType, variationKey, e.target.value);
         });
         
-        deleteBtn.addEventListener('click', () => {
-            this.deleteVariation(stringKey, lang, variationType, variationKey);
+        deleteBtn.addEventListener('click', async () => {
+            await this.deleteVariation(stringKey, lang, variationType, variationKey);
         });
         
         entryDiv.appendChild(keyInput);
@@ -1064,17 +1084,66 @@ class XCStringEditor {
     async addLocalization(stringKey) {
         const lang = await this.showInputDialog('Add Localization', 'Enter language code (e.g., es, fr, de):', '');
         if (lang && lang.trim()) {
+            // Ensure localizations object exists
+            if (!this.data.strings[stringKey].localizations) {
+                this.data.strings[stringKey].localizations = {};
+            }
+            
             if (!this.data.strings[stringKey].localizations[lang]) {
                 this.data.strings[stringKey].localizations[lang] = {
                     stringUnit: {
-                        state: 'translated',
+                        state: 'new',
                         value: ''
                     }
                 };
                 this.markModified();
                 this.renderEditor();
+                this.showNotification(`Added localization for "${lang}"`, 'success');
+            } else {
+                this.showNotification(`Localization for "${lang}" already exists`, 'warning');
             }
         }
+    }
+
+    async addLocalizationWithVariations(stringKey) {
+        const lang = await this.showInputDialog('Add Localization with Variations', 'Enter language code (e.g., es, fr, de):', '');
+        if (!lang || !lang.trim()) return;
+        
+        // Ensure localizations object exists
+        if (!this.data.strings[stringKey].localizations) {
+            this.data.strings[stringKey].localizations = {};
+        }
+        
+        if (this.data.strings[stringKey].localizations[lang]) {
+            this.showNotification(`Localization for "${lang}" already exists`, 'warning');
+            return;
+        }
+        
+        const variationType = await this.showInputDialog(
+            `Select Variation Type for ${lang}`,
+            'Enter variation type (e.g., plural, device, width):',
+            'plural'
+        );
+        
+        if (!variationType || !variationType.trim()) return;
+        
+        // Create localization with variations structure
+        this.data.strings[stringKey].localizations[lang] = {
+            variations: {
+                [variationType]: {
+                    other: {
+                        stringUnit: {
+                            state: 'new',
+                            value: ''
+                        }
+                    }
+                }
+            }
+        };
+        
+        this.markModified();
+        this.renderEditor();
+        this.showNotification(`Added localization with ${variationType} variations for "${lang}"`, 'success');
     }
 
     async deleteLocalization(stringKey, lang) {
@@ -1134,9 +1203,16 @@ class XCStringEditor {
     }
 
     async addVariation(stringKey, lang, variationType) {
+        let examples = 'one, other, zero';
+        if (variationType === 'device') {
+            examples = 'iphone, ipad, mac, other';
+        } else if (variationType === 'width') {
+            examples = 'compact, regular, other';
+        }
+        
         const variationKey = await this.showInputDialog(
-            'Add Variation',
-            `Enter variation key for ${variationType} (e.g., one, other, zero):`,
+            `Add ${variationType.charAt(0).toUpperCase() + variationType.slice(1)} Variation`,
+            `Enter ${variationType} variation key (e.g., ${examples}):`,
             ''
         );
         
@@ -1163,7 +1239,7 @@ class XCStringEditor {
 
     async addVariationType(stringKey, lang) {
         const variationType = await this.showInputDialog(
-            'Add Variation Type',
+            `Add Variation Type for ${lang}`,
             'Enter variation type (e.g., plural, device, width):',
             ''
         );
@@ -1188,8 +1264,11 @@ class XCStringEditor {
         }
     }
 
-    deleteVariation(stringKey, lang, variationType, variationKey) {
-        const shouldDelete = confirm(`Delete variation "${variationKey}" for ${variationType}?`);
+    async deleteVariation(stringKey, lang, variationType, variationKey) {
+        const shouldDelete = await this.showConfirmDialog(
+            'Delete Variation',
+            `Delete variation "${variationKey}" for ${variationType}?`
+        );
         if (shouldDelete) {
             const localization = this.data.strings[stringKey].localizations[lang];
             if (localization.variations && localization.variations[variationType]) {
