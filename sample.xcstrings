@@ -1,42 +1,17 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "hello_world" : {
-      "comment" : "A simple greeting message",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hello, World!"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "¡Hola, Mundo!"
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bonjour, le Monde!"
-          }
-        }
-      }
+    "test_key_with_empty_localizations" : {
+      "comment" : "This string has no localizations",
+      "localizations" : {}
     },
-    "welcome_message" : {
-      "comment" : "Welcome message for new users",
+    "test_key_with_some_localizations" : {
+      "comment" : "This string has some localizations",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Welcome to our app!"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "¡Bienvenido a nuestra aplicación!"
+            "value" : "Hello"
           }
         }
       }

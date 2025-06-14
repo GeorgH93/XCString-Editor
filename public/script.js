@@ -1461,6 +1461,8 @@ class XCStringEditor {
             
             // Now set the value
             this.data.strings[stringKey].localizations[lang].stringUnit.value = value;
+            console.log(`Updated localization value for ${stringKey}[${lang}] = "${value}"`);
+            console.log('Current data structure:', this.data.strings[stringKey].localizations[lang]);
             this.markModified();
         }
     }
@@ -1490,6 +1492,8 @@ class XCStringEditor {
                         value: ''
                     }
                 };
+                console.log(`Added localization ${lang} to ${stringKey}`);
+                console.log('Full string data after adding:', JSON.stringify(this.data.strings[stringKey], null, 2));
                 this.markModified();
                 this.updateStringEntry(stringKey);
                 this.showNotification(`Added localization for "${lang}"`, 'success');
@@ -1792,6 +1796,10 @@ class XCStringEditor {
 
     async exportFile() {
         try {
+            // Debug: Log the data being sent to backend
+            console.log('Exporting data structure:', this.data);
+            console.log('Exporting data JSON:', JSON.stringify(this.data, null, 2));
+            
             const response = await fetch('/backend/index.php/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1934,6 +1942,35 @@ class XCStringEditor {
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
+    }
+
+    // Debug function for testing data integrity
+    debugDataIntegrity() {
+        console.log('=== DATA INTEGRITY DEBUG ===');
+        console.log('Full data structure:', this.data);
+        
+        if (this.data && this.data.strings) {
+            Object.keys(this.data.strings).forEach(stringKey => {
+                const stringData = this.data.strings[stringKey];
+                console.log(`String: ${stringKey}`);
+                console.log(`  Comment: ${stringData.comment}`);
+                console.log(`  Localizations:`, stringData.localizations);
+                
+                if (stringData.localizations) {
+                    Object.keys(stringData.localizations).forEach(lang => {
+                        const loc = stringData.localizations[lang];
+                        if (loc.stringUnit) {
+                            console.log(`    ${lang}: "${loc.stringUnit.value}" (${loc.stringUnit.state})`);
+                        } else if (loc.variations) {
+                            console.log(`    ${lang}: [variations]`);
+                        }
+                    });
+                }
+            });
+        }
+        
+        console.log('=== END DEBUG ===');
+        return this.data;
     }
 }
 
