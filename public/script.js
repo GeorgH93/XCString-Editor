@@ -284,7 +284,7 @@ class XCStringEditor {
 
     showFileManagement() {
         this.fileManagementSection.style.display = 'block';
-        this.uploadSection.style.display = 'none';
+        this.uploadSection.style.display = 'block';
     }
 
     hideFileManagement() {
@@ -503,6 +503,42 @@ class XCStringEditor {
         }
     }
 
+    async saveUploadedFile(fileName, content) {
+        if (!this.currentUser || !this.data) return;
+        
+        try {
+            const response = await fetch('/backend/index.php/files/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: fileName,
+                    content: JSON.stringify(this.data),
+                    is_public: false
+                })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                this.currentFileId = result.file_id;
+                this.fileInfo.textContent = 'Saved';
+                this.saveBtn.style.display = 'inline-block';
+                this.shareBtn.style.display = 'inline-block';
+                this.loadUserFiles(); // Refresh file list
+                alert('File saved successfully!');
+            } else {
+                alert('Failed to save file: ' + result.error);
+                this.fileInfo.textContent = 'Uploaded file (not saved)';
+                this.saveBtn.style.display = 'inline-block';
+                this.shareBtn.style.display = 'none';
+            }
+        } catch (error) {
+            alert('Error saving file: ' + error.message);
+            this.fileInfo.textContent = 'Uploaded file (not saved)';
+            this.saveBtn.style.display = 'inline-block';
+            this.shareBtn.style.display = 'none';
+        }
+    }
+
     async shareCurrentFile() {
         if (!this.currentFileId) return;
         
@@ -575,11 +611,22 @@ class XCStringEditor {
                 this.currentFileId = null;
                 this.isModified = false;
                 this.editorTitle.textContent = file.name;
-                this.fileInfo.textContent = 'Uploaded file (not saved)';
                 
-                // Show save button if user is logged in
-                this.saveBtn.style.display = this.currentUser ? 'inline-block' : 'none';
-                this.shareBtn.style.display = 'none';
+                // For authenticated users, offer to save immediately
+                if (this.currentUser) {
+                    const shouldSave = confirm('Save this file to your account?');
+                    if (shouldSave) {
+                        await this.saveUploadedFile(file.name, content);
+                    } else {
+                        this.fileInfo.textContent = 'Uploaded file (not saved)';
+                        this.saveBtn.style.display = 'inline-block';
+                        this.shareBtn.style.display = 'none';
+                    }
+                } else {
+                    this.fileInfo.textContent = 'Uploaded file (not saved)';
+                    this.saveBtn.style.display = 'none';
+                    this.shareBtn.style.display = 'none';
+                }
                 
                 this.renderEditor();
             } else {
