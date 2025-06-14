@@ -734,7 +734,144 @@ class XCStringEditor {
             
             // Update progress indicators
             this.updateProgressIndicators();
+            
+            // Reapply filter if one was active
+            if (this.filterLanguage && this.filterLanguage.value) {
+                // Small delay to ensure DOM is ready
+                setTimeout(() => {
+                    this.applyFilter();
+                }, 50);
+            }
         }
+    }
+
+    updateStringEntry(stringKey) {
+        // Find and update existing entry instead of re-rendering everything
+        const existingEntry = document.querySelector(`[data-key="${stringKey}"]`);
+        if (existingEntry) {
+            const stringData = this.data.strings[stringKey];
+            if (stringData) {
+                // Store filter state
+                const wasFilteredOut = existingEntry.classList.contains('filtered-out');
+                const hasFocusedInput = existingEntry.classList.contains('has-focused-input');
+                
+                // Replace the entry
+                const newEntry = this.createStringEntryElement(stringKey, stringData);
+                
+                // Restore filter state
+                if (wasFilteredOut) newEntry.classList.add('filtered-out');
+                if (hasFocusedInput) newEntry.classList.add('has-focused-input');
+                
+                existingEntry.replaceWith(newEntry);
+                
+                // Reapply focus monitoring
+                this.setupFocusMonitoring(newEntry);
+            }
+        }
+    }
+
+    createStringEntryElement(key, stringData) {
+        // Extract the string entry creation logic into a separate method
+        const entryDiv = document.createElement('div');
+        entryDiv.className = 'string-entry';
+        entryDiv.dataset.key = key;
+
+        const comment = stringData.comment || '';
+        const localizations = stringData.localizations || {};
+
+        // Create the structure using DOM methods (safer for special characters)
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'string-entry-header';
+        
+        const keyInput = document.createElement('input');
+        keyInput.type = 'text';
+        keyInput.className = 'string-key-input';
+        keyInput.value = key;
+        keyInput.placeholder = 'String key';
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn btn-danger btn-sm delete-string-btn';
+        deleteBtn.textContent = 'Delete';
+        
+        headerDiv.appendChild(keyInput);
+        headerDiv.appendChild(deleteBtn);
+        
+        const detailsDiv = document.createElement('div');
+        detailsDiv.className = 'string-details';
+        
+        const commentGroup = document.createElement('div');
+        commentGroup.className = 'comment-group';
+        
+        const commentLabel = document.createElement('label');
+        commentLabel.textContent = 'Comment';
+        
+        const commentInput = document.createElement('input');
+        commentInput.type = 'text';
+        commentInput.className = 'string-comment-input';
+        commentInput.value = comment;
+        commentInput.placeholder = 'comment';
+        
+        commentGroup.appendChild(commentLabel);
+        commentGroup.appendChild(commentInput);
+        
+        const localizationsGroup = document.createElement('div');
+        localizationsGroup.className = 'form-group';
+        
+        const localizationsLabel = document.createElement('label');
+        localizationsLabel.textContent = 'Localizations:';
+        
+        const localizationsDiv = document.createElement('div');
+        localizationsDiv.className = 'localizations';
+        localizationsDiv.dataset.key = key;
+        this.renderLocalizations(localizationsDiv, key, localizations);
+        
+        const addLocalizationBtn = document.createElement('button');
+        addLocalizationBtn.className = 'btn btn-secondary add-localization-btn';
+        addLocalizationBtn.textContent = 'Add Localization';
+        
+        const addVariationLocalizationBtn = document.createElement('button');
+        addVariationLocalizationBtn.className = 'btn btn-secondary add-localization-btn';
+        addVariationLocalizationBtn.textContent = 'Add with Variations';
+        
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.display = 'flex';
+        buttonContainer.style.gap = '10px';
+        buttonContainer.style.marginTop = '10px';
+        buttonContainer.appendChild(addLocalizationBtn);
+        buttonContainer.appendChild(addVariationLocalizationBtn);
+        
+        localizationsGroup.appendChild(localizationsLabel);
+        localizationsGroup.appendChild(localizationsDiv);
+        localizationsGroup.appendChild(buttonContainer);
+        
+        detailsDiv.appendChild(commentGroup);
+        detailsDiv.appendChild(localizationsGroup);
+        
+        entryDiv.appendChild(headerDiv);
+        entryDiv.appendChild(detailsDiv);
+
+        // Add event listeners
+        keyInput.addEventListener('change', (e) => {
+            this.updateStringKey(key, e.target.value);
+        });
+
+        deleteBtn.addEventListener('click', () => {
+            this.deleteString(key);
+        });
+
+        commentInput.addEventListener('change', (e) => {
+            this.updateStringComment(key, e.target.value);
+        });
+
+        addLocalizationBtn.addEventListener('click', async () => {
+            await this.addLocalization(key);
+        });
+
+        addVariationLocalizationBtn.addEventListener('click', async () => {
+            await this.addLocalizationWithVariations(key);
+        });
+
+        return entryDiv;
     }
 
     updateProgressIndicators() {
@@ -1031,105 +1168,7 @@ class XCStringEditor {
     }
 
     renderStringEntry(key, stringData) {
-        const entryDiv = document.createElement('div');
-        entryDiv.className = 'string-entry';
-        entryDiv.dataset.key = key;
-
-        const comment = stringData.comment || '';
-        const localizations = stringData.localizations || {};
-
-        // Create the structure using DOM methods (safer for special characters)
-        const headerDiv = document.createElement('div');
-        headerDiv.className = 'string-entry-header';
-        
-        const keyInput = document.createElement('input');
-        keyInput.type = 'text';
-        keyInput.className = 'string-key-input';
-        keyInput.value = key; // Set value directly (no escaping needed)
-        keyInput.placeholder = 'String key';
-        
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'btn btn-danger btn-sm delete-string-btn';
-        deleteBtn.textContent = 'Delete';
-        
-        headerDiv.appendChild(keyInput);
-        headerDiv.appendChild(deleteBtn);
-        
-        const detailsDiv = document.createElement('div');
-        detailsDiv.className = 'string-details';
-        
-        const commentGroup = document.createElement('div');
-        commentGroup.className = 'comment-group';
-        
-        const commentLabel = document.createElement('label');
-        commentLabel.textContent = 'Comment';
-        
-        const commentInput = document.createElement('input');
-        commentInput.type = 'text';
-        commentInput.className = 'string-comment-input';
-        commentInput.value = comment; // Set value directly (no escaping needed)
-        commentInput.placeholder = 'comment';
-        
-        commentGroup.appendChild(commentLabel);
-        commentGroup.appendChild(commentInput);
-        
-        const localizationsGroup = document.createElement('div');
-        localizationsGroup.className = 'form-group';
-        
-        const localizationsLabel = document.createElement('label');
-        localizationsLabel.textContent = 'Localizations:';
-        
-        const localizationsDiv = document.createElement('div');
-        localizationsDiv.className = 'localizations';
-        localizationsDiv.dataset.key = key;
-        this.renderLocalizations(localizationsDiv, key, localizations);
-        
-        const addLocalizationBtn = document.createElement('button');
-        addLocalizationBtn.className = 'btn btn-secondary add-localization-btn';
-        addLocalizationBtn.textContent = 'Add Localization';
-        
-        const addVariationLocalizationBtn = document.createElement('button');
-        addVariationLocalizationBtn.className = 'btn btn-secondary add-localization-btn';
-        addVariationLocalizationBtn.textContent = 'Add with Variations';
-        
-        const buttonContainer = document.createElement('div');
-        buttonContainer.style.display = 'flex';
-        buttonContainer.style.gap = '10px';
-        buttonContainer.style.marginTop = '10px';
-        buttonContainer.appendChild(addLocalizationBtn);
-        buttonContainer.appendChild(addVariationLocalizationBtn);
-        
-        localizationsGroup.appendChild(localizationsLabel);
-        localizationsGroup.appendChild(localizationsDiv);
-        localizationsGroup.appendChild(buttonContainer);
-        
-        detailsDiv.appendChild(commentGroup);
-        detailsDiv.appendChild(localizationsGroup);
-        
-        entryDiv.appendChild(headerDiv);
-        entryDiv.appendChild(detailsDiv);
-
-        // Add event listeners
-        keyInput.addEventListener('change', (e) => {
-            this.updateStringKey(key, e.target.value);
-        });
-
-        deleteBtn.addEventListener('click', () => {
-            this.deleteString(key);
-        });
-
-        commentInput.addEventListener('change', (e) => {
-            this.updateStringComment(key, e.target.value);
-        });
-
-        addLocalizationBtn.addEventListener('click', async () => {
-            await this.addLocalization(key);
-        });
-
-        addVariationLocalizationBtn.addEventListener('click', async () => {
-            await this.addLocalizationWithVariations(key);
-        });
-
+        const entryDiv = this.createStringEntryElement(key, stringData);
         this.stringsContainer.appendChild(entryDiv);
     }
 
@@ -1384,7 +1423,7 @@ class XCStringEditor {
             this.data.strings[newKey] = this.data.strings[oldKey];
             delete this.data.strings[oldKey];
             this.markModified();
-            this.renderEditor();
+            this.renderEditor(); // Need full re-render since key changed
         }
     }
 
@@ -1408,7 +1447,7 @@ class XCStringEditor {
             localizations[newLang] = localizations[oldLang];
             delete localizations[oldLang];
             this.markModified();
-            this.renderEditor();
+            this.updateStringEntry(stringKey);
         }
     }
 
@@ -1428,7 +1467,7 @@ class XCStringEditor {
                     }
                 };
                 this.markModified();
-                this.renderEditor();
+                this.updateStringEntry(stringKey);
                 this.showNotification(`Added localization for "${lang}"`, 'success');
             } else {
                 this.showNotification(`Localization for "${lang}" already exists`, 'warning');
@@ -1473,7 +1512,7 @@ class XCStringEditor {
         };
         
         this.markModified();
-        this.renderEditor();
+        this.updateStringEntry(stringKey);
         this.showNotification(`Added localization with ${variationType} variations for "${lang}"`, 'success');
     }
 
@@ -1485,7 +1524,7 @@ class XCStringEditor {
         if (shouldDelete) {
             delete this.data.strings[stringKey].localizations[lang];
             this.markModified();
-            this.renderEditor();
+            this.updateStringEntry(stringKey);
         }
     }
 
@@ -1506,7 +1545,7 @@ class XCStringEditor {
                 localization.variations[variationType][newKey] = localization.variations[variationType][oldKey];
                 delete localization.variations[variationType][oldKey];
                 this.markModified();
-                this.renderEditor();
+                this.updateStringEntry(stringKey);
             }
         }
     }
@@ -1564,7 +1603,7 @@ class XCStringEditor {
             };
             
             this.markModified();
-            this.renderEditor();
+            this.updateStringEntry(stringKey);
         }
     }
 
@@ -1591,7 +1630,7 @@ class XCStringEditor {
             };
             
             this.markModified();
-            this.renderEditor();
+            this.updateStringEntry(stringKey);
         }
     }
 
@@ -1620,7 +1659,7 @@ class XCStringEditor {
                 }
                 
                 this.markModified();
-                this.renderEditor();
+                this.updateStringEntry(stringKey);
             }
         }
     }
