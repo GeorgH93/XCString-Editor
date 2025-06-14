@@ -1,0 +1,13 @@
+{
+  "name": "xcstring-editor",
+  "version": "1.0.0",
+  "description": "Web-based editor for xcstrings files",
+  "scripts": {
+    "dev": "php -S localhost:8080 -t public",
+    "start": "php -S localhost:8080 -t public",
+    "test": "echo 'No tests specified'"
+  },
+  "keywords": ["xcstrings", "editor", "localization", "ios", "apple"],
+  "author": "",
+  "license": "MIT"
+}
