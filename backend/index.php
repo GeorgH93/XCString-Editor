@@ -22,7 +22,29 @@ try {
     $db = new Database($config);
     $auth = new Auth($db, $config);
     $fileManager = new FileManager($db, $config);
-    $aiService = new AIService($config);
+    
+    // Initialize AI service (defensive initialization)
+    try {
+        $aiService = new AIService($config);
+    } catch (Exception $e) {
+        // Create a disabled AI service if initialization fails
+        $aiService = new class {
+            public function isEnabled() { return false; }
+            public function getAvailableProviders() { return []; }
+            public function translate($text, $sourceLanguage, $targetLanguage, $context = [], $provider = null, $model = null) {
+                throw new Exception('AI features are not enabled');
+            }
+            public function proofread($text, $language, $context = [], $provider = null, $model = null) {
+                throw new Exception('AI features are not enabled');
+            }
+            public function buildContext($currentKey, $allStrings, $language, $maxItems = 5) {
+                return [];
+            }
+            public function buildTranslationContext($currentKey, $allStrings, $sourceLanguage, $targetLanguage, $maxItems = 5) {
+                return [];
+            }
+        };
+    }
     
     // Initialize database schema if needed (for SQLite)
     if ($config['database']['driver'] === 'sqlite') {
@@ -202,6 +224,9 @@ try {
                 if (!$currentUser) {
                     throw new Exception('Authentication required');
                 }
+                if (!$aiService->isEnabled()) {
+                    throw new Exception('AI features are not enabled');
+                }
                 if (!isset($input['text'], $input['source_language'], $input['target_language'])) {
                     throw new Exception('Text, source_language, and target_language are required');
                 }
@@ -230,6 +255,9 @@ try {
             } elseif (strpos($requestUri, '/ai/proofread') !== false) {
                 if (!$currentUser) {
                     throw new Exception('Authentication required');
+                }
+                if (!$aiService->isEnabled()) {
+                    throw new Exception('AI features are not enabled');
                 }
                 if (!isset($input['text'], $input['language'])) {
                     throw new Exception('Text and language are required');

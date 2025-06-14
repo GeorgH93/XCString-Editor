@@ -13,11 +13,15 @@ class AIService {
     
     public function getAvailableProviders() {
         $providers = [];
+        if (!$this->isEnabled() || !isset($this->config['ai']['providers'])) {
+            return $providers;
+        }
+        
         foreach ($this->config['ai']['providers'] as $name => $provider) {
-            if ($provider['enabled'] && !empty($provider['api_key'])) {
+            if (($provider['enabled'] ?? false) && !empty($provider['api_key'] ?? '')) {
                 $providers[$name] = [
                     'name' => $name,
-                    'models' => $provider['models']
+                    'models' => $provider['models'] ?? []
                 ];
             }
         }
