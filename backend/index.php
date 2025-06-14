@@ -47,8 +47,46 @@ function parseXcString($content) {
     return $json;
 }
 
+function ensureObjectsStayObjects($data) {
+    if (is_array($data)) {
+        // If it's an empty array, convert to stdClass to preserve {} format
+        if (empty($data)) {
+            return new stdClass();
+        }
+        
+        // If it's an associative array, convert to stdClass
+        if (array_keys($data) !== range(0, count($data) - 1)) {
+            $obj = new stdClass();
+            foreach ($data as $key => $value) {
+                $obj->$key = ensureObjectsStayObjects($value);
+            }
+            return $obj;
+        }
+        
+        // It's a numeric array, recurse into elements
+        return array_map('ensureObjectsStayObjects', $data);
+    }
+    
+    return $data;
+}
+
 function generateXcString($data) {
-    return json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    // Ensure objects stay as objects (not arrays) in the structure
+    $data = ensureObjectsStayObjects($data);
+    
+    // Generate JSON with proper formatting
+    $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    
+    // Convert 4-space indentation to 2-space indentation
+    $json = preg_replace_callback('/^(    )+/m', function($matches) {
+        $indentLevel = strlen($matches[0]) / 4;
+        return str_repeat('  ', $indentLevel);
+    }, $json);
+    
+    // Ensure proper spacing around colons: "key" : "value" (space before and after colon)
+    $json = preg_replace('/"\s*:\s*/', '" : ', $json);
+    
+    return $json;
 }
 
 try {
