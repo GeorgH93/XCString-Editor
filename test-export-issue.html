@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Export Issue</title>
+</head>
+<body>
+    <h1>Testing Export Issue with Empty Localizations</h1>
+    <div id="test-results"></div>
+    
+    <script>
+        // Test data similar to what would be loaded
+        const testData = {
+            "sourceLanguage": "en",
+            "strings": {
+                "empty_localization_string": {
+                    "comment": "This has empty localizations",
+                    "localizations": {}
+                },
+                "normal_string": {
+                    "comment": "This has normal localizations", 
+                    "localizations": {
+                        "en": {
+                            "stringUnit": {
+                                "state": "translated",
+                                "value": "Hello"
+                            }
+                        }
+                    }
+                }
+            },
+            "version": "1.0"
+        };
+        
+        // Simulate adding a localization to the empty string
+        console.log("Before adding localization:", testData.strings.empty_localization_string.localizations);
+        
+        // This is what the addLocalization function should do
+        const stringKey = "empty_localization_string";
+        const lang = "de";
+        
+        // Ensure localizations object exists
+        if (!testData.strings[stringKey].localizations) {
+            testData.strings[stringKey].localizations = {};
+        }
+        
+        // Add the localization
+        testData.strings[stringKey].localizations[lang] = {
+            stringUnit: {
+                state: 'new',
+                value: ''
+            }
+        };
+        
+        console.log("After adding localization:", testData.strings.empty_localization_string.localizations);
+        
+        // Simulate setting a value
+        testData.strings[stringKey].localizations[lang].stringUnit.value = "Test German Value";
+        testData.strings[stringKey].localizations[lang].stringUnit.state = "translated";
+        
+        console.log("After setting value:", testData.strings.empty_localization_string.localizations);
+        
+        // Test export serialization
+        const exportData = JSON.stringify(testData, null, 2);
+        console.log("Export data:", exportData);
+        
+        // Show results
+        document.getElementById('test-results').innerHTML = `
+            <h2>Test Results:</h2>
+            <h3>Final data structure:</h3>
+            <pre>${exportData}</pre>
+            <h3>Does it contain the new localization?</h3>
+            <p>${exportData.includes('"de"') && exportData.includes('Test German Value') ? 'YES ✅' : 'NO ❌'}</p>
+        `;
+    </script>
+</body>
+</html>

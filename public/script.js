@@ -1435,7 +1435,31 @@ class XCStringEditor {
     }
 
     updateLocalizationValue(stringKey, lang, value) {
-        if (this.data.strings[stringKey] && this.data.strings[stringKey].localizations[lang]) {
+        if (this.data.strings[stringKey]) {
+            // Ensure localizations object exists
+            if (!this.data.strings[stringKey].localizations) {
+                this.data.strings[stringKey].localizations = {};
+            }
+            
+            // Ensure the specific localization exists
+            if (!this.data.strings[stringKey].localizations[lang]) {
+                this.data.strings[stringKey].localizations[lang] = {
+                    stringUnit: {
+                        state: 'new',
+                        value: ''
+                    }
+                };
+            }
+            
+            // Ensure stringUnit exists
+            if (!this.data.strings[stringKey].localizations[lang].stringUnit) {
+                this.data.strings[stringKey].localizations[lang].stringUnit = {
+                    state: 'new',
+                    value: ''
+                };
+            }
+            
+            // Now set the value
             this.data.strings[stringKey].localizations[lang].stringUnit.value = value;
             this.markModified();
         }
@@ -1530,11 +1554,33 @@ class XCStringEditor {
 
     // Variation management functions
     updateLocalizationState(stringKey, lang, newState) {
-        if (this.data.strings[stringKey] && this.data.strings[stringKey].localizations[lang]) {
-            if (this.data.strings[stringKey].localizations[lang].stringUnit) {
-                this.data.strings[stringKey].localizations[lang].stringUnit.state = newState;
-                this.markModified();
+        if (this.data.strings[stringKey]) {
+            // Ensure localizations object exists
+            if (!this.data.strings[stringKey].localizations) {
+                this.data.strings[stringKey].localizations = {};
             }
+            
+            // Ensure the specific localization exists
+            if (!this.data.strings[stringKey].localizations[lang]) {
+                this.data.strings[stringKey].localizations[lang] = {
+                    stringUnit: {
+                        state: 'new',
+                        value: ''
+                    }
+                };
+            }
+            
+            // Ensure stringUnit exists
+            if (!this.data.strings[stringKey].localizations[lang].stringUnit) {
+                this.data.strings[stringKey].localizations[lang].stringUnit = {
+                    state: 'new',
+                    value: ''
+                };
+            }
+            
+            // Now set the state
+            this.data.strings[stringKey].localizations[lang].stringUnit.state = newState;
+            this.markModified();
         }
     }
 
@@ -1672,7 +1718,20 @@ class XCStringEditor {
         stateSelect.value = newState;
         
         // Update the data only on change events, not input events
-        if (!isInputEvent && this.data.strings[stringKey] && this.data.strings[stringKey].localizations[lang]) {
+        if (!isInputEvent && this.data.strings[stringKey]) {
+            // Ensure the localization structure exists before updating state
+            if (!this.data.strings[stringKey].localizations) {
+                this.data.strings[stringKey].localizations = {};
+            }
+            if (!this.data.strings[stringKey].localizations[lang]) {
+                this.data.strings[stringKey].localizations[lang] = {
+                    stringUnit: { state: 'new', value: '' }
+                };
+            }
+            if (!this.data.strings[stringKey].localizations[lang].stringUnit) {
+                this.data.strings[stringKey].localizations[lang].stringUnit = { state: 'new', value: '' };
+            }
+            
             this.data.strings[stringKey].localizations[lang].stringUnit.state = newState;
             this.markModifiedSilent();
         }
