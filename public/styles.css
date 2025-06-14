@@ -186,24 +186,58 @@ header {
 
 .string-entry-header {
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
     margin-bottom: 15px;
 }
 
-.key-group {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+.string-entry-header .string-key-input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid #d2d2d7;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background-color: #fff;
+    transition: border-color 0.2s ease;
+    font-weight: 500;
 }
 
-.key-group label {
+.string-entry-header .string-key-input:focus {
+    outline: none;
+    border-color: #0071e3;
+    box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.1);
+}
+
+.comment-group {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    justify-content: flex-start;
+}
+
+.comment-group label {
     margin: 0;
     font-weight: 500;
     white-space: nowrap;
+    flex-shrink: 0;
 }
 
-.key-group input {
+.comment-group input {
     flex: 1;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d2d2d7;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background-color: #fff;
+    transition: border-color 0.2s ease;
+}
+
+.comment-group input:focus {
+    outline: none;
+    border-color: #0071e3;
+    box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.1);
 }
 
 .string-key {

@@ -719,16 +719,13 @@ class XCStringEditor {
 
         entryDiv.innerHTML = `
             <div class="string-entry-header">
+                <input type="text" class="string-key-input" value="${key}" onchange="editor.updateStringKey('${key}', this.value)" placeholder="String key">
                 <button class="btn btn-danger btn-sm delete-string-btn" onclick="editor.deleteString('${key}')">Delete</button>
             </div>
             <div class="string-details">
-                <div class="form-group key-group">
-                    <label>Key:</label>
-                    <input type="text" class="string-key-input" value="${key}" onchange="editor.updateStringKey('${key}', this.value)">
-                </div>
-                <div class="form-group">
-                    <label>Comment:</label>
-                    <textarea class="string-comment-input" onchange="editor.updateStringComment('${key}', this.value)">${comment}</textarea>
+                <div class="comment-group">
+                    <label>Comment</label>
+                    <input type="text" class="string-comment-input" value="${comment}" onchange="editor.updateStringComment('${key}', this.value)" placeholder="comment">
                 </div>
                 <div class="form-group">
                     <label>Localizations:</label>
