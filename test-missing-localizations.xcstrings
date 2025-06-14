@@ -1,0 +1,8 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "test_key_with_missing_localizations" : {
+    }
+  },
+  "version" : "1.0"
+}

@@ -70,6 +70,30 @@ function ensureObjectsStayObjects($data) {
     return $data;
 }
 
+function fixDataForJavaScript($data) {
+    // Fix specific issues with XCString data structure for JavaScript consumption
+    if (isset($data['strings'])) {
+        foreach ($data['strings'] as $stringKey => &$stringData) {
+            // If a string object became an empty array, convert it back to an object with localizations
+            if (is_array($stringData) && empty($stringData)) {
+                $stringData = [
+                    'localizations' => new stdClass()
+                ];
+            }
+            
+            // Ensure localizations property exists as an object
+            if (is_array($stringData)) {
+                if (!isset($stringData['localizations'])) {
+                    $stringData['localizations'] = new stdClass();
+                } elseif (is_array($stringData['localizations']) && empty($stringData['localizations'])) {
+                    $stringData['localizations'] = new stdClass();
+                }
+            }
+        }
+    }
+    return $data;
+}
+
 function generateXcString($data) {
     // Ensure objects stay as objects (not arrays) in the structure
     $data = ensureObjectsStayObjects($data);
@@ -162,6 +186,7 @@ try {
                     throw new Exception('Content is required');
                 }
                 $parsed = parseXcString($input['content']);
+                $parsed = fixDataForJavaScript($parsed);
                 echo json_encode(['success' => true, 'data' => $parsed]);
                 
             } elseif (strpos($requestUri, '/generate') !== false) {

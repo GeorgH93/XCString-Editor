@@ -1483,6 +1483,11 @@ class XCStringEditor {
                 this.data.strings[stringKey].localizations = {};
             }
             
+            // Convert array to object if needed (safety check)
+            if (Array.isArray(this.data.strings[stringKey].localizations)) {
+                this.data.strings[stringKey].localizations = {};
+            }
+            
             if (!this.data.strings[stringKey].localizations[lang]) {
                 this.data.strings[stringKey].localizations[lang] = {
                     stringUnit: {
@@ -1792,6 +1797,9 @@ class XCStringEditor {
 
     async exportFile() {
         try {
+            // Ensure data integrity before export
+            this.data = this.fixParsedData(this.data);
+            
             const response = await fetch('/backend/index.php/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1943,7 +1951,11 @@ class XCStringEditor {
         // Fix each string's localizations if they're arrays instead of objects
         Object.keys(data.strings).forEach(stringKey => {
             const stringData = data.strings[stringKey];
-            if (stringData.localizations && Array.isArray(stringData.localizations)) {
+            
+            // Ensure localizations property exists
+            if (!stringData.localizations) {
+                stringData.localizations = {};
+            } else if (Array.isArray(stringData.localizations)) {
                 // Convert empty array [] back to empty object {}
                 if (stringData.localizations.length === 0) {
                     stringData.localizations = {};
