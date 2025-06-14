@@ -61,6 +61,13 @@ header {
     font-weight: 500;
 }
 
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
 .upload-section {
     margin-bottom: 40px;
 }
@@ -313,6 +320,112 @@ header {
 
 .auth-switch a:hover {
     text-decoration: underline;
+}
+
+/* OAuth2 Styles */
+.oauth2-section {
+    margin-top: 20px;
+}
+
+.oauth2-divider {
+    text-align: center;
+    margin: 20px 0;
+    position: relative;
+}
+
+.oauth2-divider::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background-color: #e5e5e7;
+}
+
+.oauth2-divider span {
+    background-color: #fff;
+    padding: 0 15px;
+    color: #86868b;
+    font-size: 0.9rem;
+}
+
+.oauth2-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.oauth2-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border: 1px solid #d2d2d7;
+    border-radius: 8px;
+    background-color: #fff;
+    color: #1d1d1f;
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.oauth2-btn:hover {
+    border-color: #0071e3;
+    background-color: #f6f9ff;
+}
+
+.oauth2-btn:active {
+    transform: translateY(1px);
+}
+
+.oauth2-btn svg,
+.oauth2-btn img {
+    width: 20px;
+    height: 20px;
+}
+
+.oauth2-btn.google {
+    border-color: #db4437;
+    color: #db4437;
+}
+
+.oauth2-btn.google:hover {
+    background-color: #db4437;
+    color: white;
+}
+
+.oauth2-btn.github {
+    border-color: #333;
+    color: #333;
+}
+
+.oauth2-btn.github:hover {
+    background-color: #333;
+    color: white;
+}
+
+.oauth2-btn.microsoft {
+    border-color: #0078d4;
+    color: #0078d4;
+}
+
+.oauth2-btn.microsoft:hover {
+    background-color: #0078d4;
+    color: white;
+}
+
+.oauth2-btn.gitlab {
+    border-color: #fc6d26;
+    color: #fc6d26;
+}
+
+.oauth2-btn.gitlab:hover {
+    background-color: #fc6d26;
+    color: white;
 }
 
 /* File Management Styles */

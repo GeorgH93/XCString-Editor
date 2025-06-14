@@ -120,6 +120,11 @@ Edit `config.php` to customize:
 - **lifetime**: Session duration (default: 7 days)
 - **cookie settings**: Security options for session cookies
 
+### OAuth2 Authentication
+- **enabled**: Enable/disable OAuth2 authentication
+- **base_url**: Your application's base URL for OAuth2 redirects
+- **providers**: Configure OAuth2 providers (Google, GitHub, Microsoft, GitLab)
+
 ## Usage
 
 ### Guest Mode (No Account Required)
@@ -215,6 +220,122 @@ The application uses:
 - `backend/schema.sql` - Database schema
 - `config.php` - Configuration options
 
+## OAuth2 Setup Guide
+
+XCString Editor supports OAuth2 authentication with popular providers. This allows users to login with their existing accounts instead of creating new passwords.
+
+### Supported Providers
+
+- **Google** - Gmail/Google Workspace accounts
+- **GitHub** - GitHub accounts  
+- **Microsoft** - Microsoft/Azure AD accounts
+- **GitLab** - GitLab.com or self-hosted GitLab
+
+### Configuration Steps
+
+1. **Enable OAuth2** in `config.php`:
+   ```php
+   'oauth2' => [
+       'enabled' => true,
+       'base_url' => 'https://your-domain.com', // Your app's URL
+       // ...
+   ]
+   ```
+
+2. **Configure each provider** you want to support:
+
+#### Google OAuth2 Setup
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select an existing one
+3. Enable the Google+ API
+4. Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client IDs"
+5. Choose "Web application"
+6. Add authorized redirect URIs:
+   - `https://your-domain.com/backend/index.php/auth/oauth/google/callback`
+7. Copy the Client ID and Client Secret to `config.php`:
+   ```php
+   'google' => [
+       'enabled' => true,
+       'client_id' => 'your-google-client-id',
+       'client_secret' => 'your-google-client-secret',
+       'redirect_uri' => 'https://your-domain.com/backend/index.php/auth/oauth/google/callback',
+   ],
+   ```
+
+#### GitHub OAuth2 Setup
+
+1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
+2. Click "New OAuth App"
+3. Fill in the details:
+   - Application name: `XCString Editor`
+   - Homepage URL: `https://your-domain.com`
+   - Authorization callback URL: `https://your-domain.com/backend/index.php/auth/oauth/github/callback`
+4. Copy the Client ID and Client Secret to `config.php`:
+   ```php
+   'github' => [
+       'enabled' => true,
+       'client_id' => 'your-github-client-id',
+       'client_secret' => 'your-github-client-secret',
+       'redirect_uri' => 'https://your-domain.com/backend/index.php/auth/oauth/github/callback',
+   ],
+   ```
+
+#### Microsoft OAuth2 Setup
+
+1. Go to [Azure App Registrations](https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps)
+2. Click "New registration"
+3. Fill in the details:
+   - Name: `XCString Editor`
+   - Supported account types: Choose based on your needs
+   - Redirect URI: `Web` → `https://your-domain.com/backend/index.php/auth/oauth/microsoft/callback`
+4. Go to "Certificates & secrets" → "New client secret"
+5. Copy the Application (client) ID and client secret to `config.php`:
+   ```php
+   'microsoft' => [
+       'enabled' => true,
+       'client_id' => 'your-microsoft-client-id',
+       'client_secret' => 'your-microsoft-client-secret',
+       'redirect_uri' => 'https://your-domain.com/backend/index.php/auth/oauth/microsoft/callback',
+       'tenant' => 'common', // or specific tenant ID
+   ],
+   ```
+
+#### GitLab OAuth2 Setup
+
+1. Go to [GitLab Applications](https://gitlab.com/-/profile/applications) (or your GitLab instance)
+2. Click "Add new application"
+3. Fill in the details:
+   - Name: `XCString Editor`
+   - Redirect URI: `https://your-domain.com/backend/index.php/auth/oauth/gitlab/callback`
+   - Scopes: `read_user`
+4. Copy the Application ID and Secret to `config.php`:
+   ```php
+   'gitlab' => [
+       'enabled' => true,
+       'client_id' => 'your-gitlab-application-id',
+       'client_secret' => 'your-gitlab-secret',
+       'redirect_uri' => 'https://your-domain.com/backend/index.php/auth/oauth/gitlab/callback',
+       'instance_url' => 'https://gitlab.com', // or your GitLab instance URL
+   ],
+   ```
+
+### Security Considerations
+
+- Always use HTTPS in production for OAuth2 redirects
+- Keep client secrets secure and never commit them to version control
+- Use environment variables for sensitive configuration in production
+- Regularly rotate OAuth2 client secrets
+- Configure appropriate OAuth2 scopes (minimal required permissions)
+
+### User Experience
+
+When OAuth2 is enabled:
+- Users see OAuth2 login buttons in the login/register modals
+- Users can link multiple OAuth2 providers to one account
+- Users can still use email/password if they have set one
+- Avatar images are automatically imported from OAuth2 providers
+
 ## Troubleshooting
 
 ### Common Issues
@@ -235,6 +356,17 @@ The application uses:
 4. **Permission denied errors**
    - Ensure web server has write permissions to data directory
    - Check file ownership and permissions
+
+5. **OAuth2 login fails**
+   - Verify OAuth2 provider configuration in `config.php`
+   - Check redirect URIs match exactly (including https/http)
+   - Ensure OAuth2 is enabled in configuration
+   - Check OAuth2 provider application settings
+
+6. **OAuth2 callback errors**
+   - Verify the base_url in `config.php` matches your domain
+   - Check that OAuth2 provider allows your redirect URI
+   - Ensure callback URLs use the correct protocol (https in production)
 
 ### Logs
 

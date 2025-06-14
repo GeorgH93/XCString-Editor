@@ -155,4 +155,224 @@ class Auth {
     public function cleanExpiredSessions() {
         $this->db->execute('DELETE FROM sessions WHERE expires_at < CURRENT_TIMESTAMP');
     }
+    
+    // OAuth2 Methods
+    
+    public function generateOAuth2State($provider) {
+        $state = bin2hex(random_bytes(32));
+        
+        // Store state for verification
+        $this->db->execute(
+            'INSERT INTO oauth2_states (id, provider) VALUES (?, ?)',
+            [$state, $provider]
+        );
+        
+        // Clean up old states (older than 1 hour)
+        $this->db->execute(
+            'DELETE FROM oauth2_states WHERE created_at < datetime("now", "-1 hour")'
+        );
+        
+        return $state;
+    }
+    
+    public function verifyOAuth2State($state, $provider) {
+        $result = $this->db->fetchOne(
+            'SELECT provider FROM oauth2_states WHERE id = ? AND provider = ?',
+            [$state, $provider]
+        );
+        
+        if ($result) {
+            // Remove used state
+            $this->db->execute('DELETE FROM oauth2_states WHERE id = ?', [$state]);
+            return true;
+        }
+        
+        return false;
+    }
+    
+    public function handleOAuth2Login($userInfo) {
+        // Check if OAuth2 account already exists
+        $oauthAccount = $this->db->fetchOne(
+            'SELECT user_id FROM oauth2_accounts WHERE provider = ? AND provider_user_id = ?',
+            [$userInfo['provider'], $userInfo['provider_id']]
+        );
+        
+        if ($oauthAccount) {
+            // Existing OAuth2 account - get user
+            $user = $this->db->fetchOne(
+                'SELECT id, email, name, avatar_url FROM users WHERE id = ?',
+                [$oauthAccount['user_id']]
+            );
+            
+            if (!$user) {
+                throw new Exception('User account not found');
+            }
+            
+            // Update user info if changed
+            $this->updateUserFromOAuth2($user['id'], $userInfo);
+            
+            return $this->createSession($user);
+        }
+        
+        // Check if user exists with same email
+        $existingUser = $this->db->fetchOne(
+            'SELECT id, email, name, avatar_url FROM users WHERE email = ?',
+            [$userInfo['email']]
+        );
+        
+        if ($existingUser) {
+            // Link existing user account with OAuth2 provider
+            $this->linkOAuth2Account($existingUser['id'], $userInfo);
+            $this->updateUserFromOAuth2($existingUser['id'], $userInfo);
+            
+            return $this->createSession($existingUser);
+        }
+        
+        // Create new user account
+        return $this->createUserFromOAuth2($userInfo);
+    }
+    
+    private function createUserFromOAuth2($userInfo) {
+        // Validate email domain if restrictions are set
+        if (!$this->isEmailAllowed($userInfo['email'])) {
+            throw new Exception('Email domain not allowed');
+        }
+        
+        // Check if registration is enabled
+        if (!$this->config['registration']['enabled']) {
+            throw new Exception('Registration is disabled');
+        }
+        
+        try {
+            $this->db->beginTransaction();
+            
+            // Create user (password_hash is nullable for OAuth2 users)
+            $this->db->execute(
+                'INSERT INTO users (email, name, avatar_url) VALUES (?, ?, ?)',
+                [$userInfo['email'], $userInfo['name'], $userInfo['avatar']]
+            );
+            
+            $userId = $this->db->lastInsertId();
+            
+            // Link OAuth2 account
+            $this->linkOAuth2Account($userId, $userInfo);
+            
+            $this->db->commit();
+            
+            $user = [
+                'id' => $userId,
+                'email' => $userInfo['email'],
+                'name' => $userInfo['name'],
+                'avatar_url' => $userInfo['avatar']
+            ];
+            
+            return $this->createSession($user);
+            
+        } catch (Exception $e) {
+            $this->db->rollback();
+            throw $e;
+        }
+    }
+    
+    private function linkOAuth2Account($userId, $userInfo) {
+        // Use appropriate upsert syntax based on database driver
+        $driver = $this->config['database']['driver'];
+        
+        if ($driver === 'sqlite') {
+            $this->db->execute(
+                'INSERT OR REPLACE INTO oauth2_accounts (user_id, provider, provider_user_id) VALUES (?, ?, ?)',
+                [$userId, $userInfo['provider'], $userInfo['provider_id']]
+            );
+        } else {
+            // For MySQL and PostgreSQL, use INSERT ... ON DUPLICATE KEY UPDATE / ON CONFLICT
+            $existing = $this->db->fetchOne(
+                'SELECT id FROM oauth2_accounts WHERE provider = ? AND provider_user_id = ?',
+                [$userInfo['provider'], $userInfo['provider_id']]
+            );
+            
+            if ($existing) {
+                $this->db->execute(
+                    'UPDATE oauth2_accounts SET user_id = ?, updated_at = CURRENT_TIMESTAMP WHERE provider = ? AND provider_user_id = ?',
+                    [$userId, $userInfo['provider'], $userInfo['provider_id']]
+                );
+            } else {
+                $this->db->execute(
+                    'INSERT INTO oauth2_accounts (user_id, provider, provider_user_id) VALUES (?, ?, ?)',
+                    [$userId, $userInfo['provider'], $userInfo['provider_id']]
+                );
+            }
+        }
+    }
+    
+    private function updateUserFromOAuth2($userId, $userInfo) {
+        // Update name and avatar if they've changed
+        $this->db->execute(
+            'UPDATE users SET name = ?, avatar_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            [$userInfo['name'], $userInfo['avatar'], $userId]
+        );
+    }
+    
+    private function createSession($user) {
+        $sessionId = $this->generateSessionId();
+        $expiresAt = date('Y-m-d H:i:s', time() + $this->config['session']['lifetime']);
+        
+        $this->db->execute(
+            'INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)',
+            [$sessionId, $user['id'], $expiresAt]
+        );
+        
+        // Set cookie
+        setcookie(
+            $this->config['session']['cookie_name'],
+            $sessionId,
+            time() + $this->config['session']['lifetime'],
+            '/',
+            '',
+            $this->config['session']['cookie_secure'],
+            $this->config['session']['cookie_httponly']
+        );
+        
+        return [
+            'id' => $user['id'],
+            'email' => $user['email'],
+            'name' => $user['name'],
+            'avatar_url' => $user['avatar_url'] ?? null
+        ];
+    }
+    
+    public function getOAuth2Providers() {
+        require_once 'OAuth2Provider.php';
+        return OAuth2ProviderFactory::getAvailableProviders($this->config);
+    }
+    
+    public function unlinkOAuth2Provider($userId, $provider) {
+        // Check if user has a password or other OAuth2 providers
+        $user = $this->db->fetchOne(
+            'SELECT password_hash FROM users WHERE id = ?',
+            [$userId]
+        );
+        
+        $otherProviders = $this->db->fetchAll(
+            'SELECT provider FROM oauth2_accounts WHERE user_id = ? AND provider != ?',
+            [$userId, $provider]
+        );
+        
+        if (!$user['password_hash'] && count($otherProviders) === 0) {
+            throw new Exception('Cannot unlink the only authentication method');
+        }
+        
+        $this->db->execute(
+            'DELETE FROM oauth2_accounts WHERE user_id = ? AND provider = ?',
+            [$userId, $provider]
+        );
+        
+        return true;
+    }
+    
+    public function getUserOAuth2Providers($userId) {
+        return $this->db->fetchAll(
+            'SELECT provider, created_at FROM oauth2_accounts WHERE user_id = ?',
+            [$userId]
+        );
+    }
 }

@@ -140,13 +140,74 @@ try {
             
         case 'GET':
             if (strpos($requestUri, '/auth/user') !== false) {
+                $oauthProviders = $auth->getOAuth2Providers();
                 echo json_encode([
                     'success' => true, 
                     'user' => $currentUser,
                     'config' => [
-                        'registration_enabled' => $config['registration']['enabled']
+                        'registration_enabled' => $config['registration']['enabled'],
+                        'oauth2_enabled' => $config['oauth2']['enabled'],
+                        'oauth2_providers' => array_keys($oauthProviders)
                     ]
                 ]);
+                
+            } elseif (preg_match('/\/auth\/oauth\/([^\/]+)\/redirect/', $requestUri, $matches)) {
+                // OAuth2 login redirect
+                $provider = $matches[1];
+                try {
+                    require_once 'OAuth2Provider.php';
+                    $oauthProviders = $auth->getOAuth2Providers();
+                    
+                    if (!isset($oauthProviders[$provider])) {
+                        throw new Exception('Provider not available');
+                    }
+                    
+                    $oauthProvider = OAuth2ProviderFactory::create($provider, $oauthProviders[$provider]['config']);
+                    $state = $auth->generateOAuth2State($provider);
+                    $authUrl = $oauthProvider->getAuthorizationUrl($state);
+                    
+                    header('Location: ' . $authUrl);
+                    exit;
+                } catch (Exception $e) {
+                    header('Location: ' . $config['oauth2']['base_url'] . '?oauth_error=' . urlencode($e->getMessage()));
+                    exit;
+                }
+                
+            } elseif (preg_match('/\/auth\/oauth\/([^\/]+)\/callback/', $requestUri, $matches)) {
+                // OAuth2 callback
+                $provider = $matches[1];
+                try {
+                    if (!isset($_GET['code'], $_GET['state'])) {
+                        throw new Exception('Missing authorization code or state');
+                    }
+                    
+                    if (isset($_GET['error'])) {
+                        throw new Exception('OAuth2 error: ' . $_GET['error']);
+                    }
+                    
+                    if (!$auth->verifyOAuth2State($_GET['state'], $provider)) {
+                        throw new Exception('Invalid OAuth2 state');
+                    }
+                    
+                    require_once 'OAuth2Provider.php';
+                    $oauthProviders = $auth->getOAuth2Providers();
+                    
+                    if (!isset($oauthProviders[$provider])) {
+                        throw new Exception('Provider not available');
+                    }
+                    
+                    $oauthProvider = OAuth2ProviderFactory::create($provider, $oauthProviders[$provider]['config']);
+                    $accessToken = $oauthProvider->getAccessToken($_GET['code']);
+                    $userInfo = $oauthProvider->getUserInfo($accessToken);
+                    
+                    $user = $auth->handleOAuth2Login($userInfo);
+                    
+                    header('Location: ' . $config['oauth2']['base_url'] . '?oauth_success=1');
+                    exit;
+                } catch (Exception $e) {
+                    header('Location: ' . $config['oauth2']['base_url'] . '?oauth_error=' . urlencode($e->getMessage()));
+                    exit;
+                }
                 
             } elseif (strpos($requestUri, '/files/my') !== false) {
                 if (!$currentUser) {

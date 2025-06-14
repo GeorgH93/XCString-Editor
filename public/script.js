@@ -85,10 +85,22 @@ class XCStringEditor {
                 this.currentUser = result.user;
                 this.config = result.config;
                 this.updateAuthUI();
+                this.updateOAuth2UI();
                 if (this.currentUser) {
                     this.showFileManagement();
                     this.loadUserFiles();
                 }
+            }
+            
+            // Check for OAuth2 callback results
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('oauth_success')) {
+                // OAuth2 login successful, refresh page to update UI
+                window.location.href = window.location.pathname;
+            } else if (urlParams.has('oauth_error')) {
+                alert('OAuth2 login failed: ' + urlParams.get('oauth_error'));
+                // Clear the error from URL
+                window.history.replaceState({}, document.title, window.location.pathname);
             }
         } catch (error) {
             console.error('Auth check failed:', error);
@@ -97,8 +109,12 @@ class XCStringEditor {
 
     updateAuthUI() {
         if (this.currentUser) {
+            const avatar = this.currentUser.avatar_url ? 
+                `<img src="${this.currentUser.avatar_url}" alt="Avatar" class="user-avatar">` : '';
+            
             this.authSection.innerHTML = `
                 <div class="user-info">
+                    ${avatar}
                     <span class="user-name">${this.currentUser.name}</span>
                     <button class="btn btn-secondary btn-sm" onclick="editor.logout()">Logout</button>
                 </div>
@@ -112,6 +128,70 @@ class XCStringEditor {
                 ${registerBtn}
             `;
         }
+    }
+    
+    updateOAuth2UI() {
+        if (!this.config?.oauth2_enabled || !this.config?.oauth2_providers?.length) {
+            return;
+        }
+        
+        const loginOAuth2Section = document.getElementById('loginOAuth2Section');
+        const registerOAuth2Section = document.getElementById('registerOAuth2Section');
+        const loginOAuth2Buttons = document.getElementById('loginOAuth2Buttons');
+        const registerOAuth2Buttons = document.getElementById('registerOAuth2Buttons');
+        
+        if (!loginOAuth2Section || !registerOAuth2Section) {
+            return;
+        }
+        
+        const oauth2ButtonsHtml = this.config.oauth2_providers.map(provider => {
+            const providerName = this.getProviderDisplayName(provider);
+            const providerIcon = this.getProviderIcon(provider);
+            
+            return `
+                <a href="/backend/index.php/auth/oauth/${provider}/redirect" class="oauth2-btn ${provider}">
+                    ${providerIcon}
+                    Continue with ${providerName}
+                </a>
+            `;
+        }).join('');
+        
+        loginOAuth2Buttons.innerHTML = oauth2ButtonsHtml;
+        registerOAuth2Buttons.innerHTML = oauth2ButtonsHtml;
+        
+        loginOAuth2Section.style.display = 'block';
+        registerOAuth2Section.style.display = 'block';
+    }
+    
+    getProviderDisplayName(provider) {
+        const names = {
+            'google': 'Google',
+            'github': 'GitHub',
+            'microsoft': 'Microsoft',
+            'gitlab': 'GitLab'
+        };
+        return names[provider] || provider;
+    }
+    
+    getProviderIcon(provider) {
+        const icons = {
+            'google': `<svg viewBox="0 0 24 24" width="20" height="20">
+                <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>`,
+            'github': `<svg viewBox="0 0 24 24" width="20" height="20">
+                <path fill="currentColor" d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+            </svg>`,
+            'microsoft': `<svg viewBox="0 0 24 24" width="20" height="20">
+                <path fill="currentColor" d="M0 0h11.377v11.372H0V0zm12.623 0H24v11.372H12.623V0zM0 12.623h11.377V24H0V12.623zm12.623 0H24V24H12.623V12.623z"/>
+            </svg>`,
+            'gitlab': `<svg viewBox="0 0 24 24" width="20" height="20">
+                <path fill="currentColor" d="M23.955 13.587l-1.342-4.135-2.664-8.189c-.135-.423-.73-.423-.867 0L16.418 9.45H7.582L4.918 1.263c-.135-.423-.73-.423-.867 0L1.387 9.452.045 13.587c-.121.375.014.789.331 1.023L12 23.054l11.624-8.443c.318-.235.452-.648.331-1.024"/>
+            </svg>`
+        };
+        return icons[provider] || '';
     }
 
     showAuthModal(mode = 'login') {

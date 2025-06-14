@@ -39,6 +39,16 @@
                             <input type="password" id="loginPassword" required>
                         </div>
                         <button type="submit" class="btn btn-primary">Login</button>
+                        
+                        <div id="loginOAuth2Section" class="oauth2-section" style="display: none;">
+                            <div class="oauth2-divider">
+                                <span>or continue with</span>
+                            </div>
+                            <div id="loginOAuth2Buttons" class="oauth2-buttons">
+                                <!-- OAuth2 buttons will be dynamically added here -->
+                            </div>
+                        </div>
+                        
                         <p class="auth-switch">Don't have an account? <a href="#" id="showRegister">Register</a></p>
                     </form>
                 </div>
@@ -59,6 +69,16 @@
                             <input type="password" id="registerPassword" required minlength="6">
                         </div>
                         <button type="submit" class="btn btn-primary">Register</button>
+                        
+                        <div id="registerOAuth2Section" class="oauth2-section" style="display: none;">
+                            <div class="oauth2-divider">
+                                <span>or continue with</span>
+                            </div>
+                            <div id="registerOAuth2Buttons" class="oauth2-buttons">
+                                <!-- OAuth2 buttons will be dynamically added here -->
+                            </div>
+                        </div>
+                        
                         <p class="auth-switch">Already have an account? <a href="#" id="showLogin">Login</a></p>
                     </form>
                 </div>

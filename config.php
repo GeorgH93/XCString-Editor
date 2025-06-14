@@ -34,6 +34,40 @@ return [
         'max_files_per_user' => 100,
     ],
     
+    // OAuth2 providers configuration
+    'oauth2' => [
+        'enabled' => false, // Set to true to enable OAuth2 authentication
+        'base_url' => 'http://localhost:8080', // Your application's base URL
+        'providers' => [
+            'google' => [
+                'enabled' => false,
+                'client_id' => '',
+                'client_secret' => '',
+                'redirect_uri' => 'http://localhost:8080/backend/index.php/auth/oauth/google/callback',
+            ],
+            'github' => [
+                'enabled' => false,
+                'client_id' => '',
+                'client_secret' => '',
+                'redirect_uri' => 'http://localhost:8080/backend/index.php/auth/oauth/github/callback',
+            ],
+            'microsoft' => [
+                'enabled' => false,
+                'client_id' => '',
+                'client_secret' => '',
+                'redirect_uri' => 'http://localhost:8080/backend/index.php/auth/oauth/microsoft/callback',
+                'tenant' => 'common', // 'common', 'organizations', 'consumers', or specific tenant ID
+            ],
+            'gitlab' => [
+                'enabled' => false,
+                'client_id' => '',
+                'client_secret' => '',
+                'redirect_uri' => 'http://localhost:8080/backend/index.php/auth/oauth/gitlab/callback',
+                'instance_url' => 'https://gitlab.com', // For self-hosted GitLab instances
+            ],
+        ],
+    ],
+    
     // Application settings
     'app' => [
         'name' => 'XCString Editor',
