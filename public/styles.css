@@ -717,3 +717,102 @@ header {
 .modal-actions .btn {
     min-width: 80px;
 }
+
+/* Variation Styles */
+.variation-container {
+    border: 1px solid #e5e5e7;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 10px 0;
+    background-color: #f9f9fb;
+}
+
+.variation-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #d2d2d7;
+}
+
+.variation-type {
+    margin-bottom: 15px;
+}
+
+.variation-type-header {
+    font-weight: 600;
+    color: #1d1d1f;
+    margin-bottom: 10px;
+    font-size: 0.9rem;
+}
+
+.variation-entry {
+    display: grid;
+    grid-template-columns: 1fr 2fr 100px 40px;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 8px;
+    padding: 8px;
+    background-color: #fff;
+    border-radius: 6px;
+    border: 1px solid #e5e5e7;
+}
+
+.variation-key-input,
+.variation-value-input {
+    padding: 6px 8px;
+    border: 1px solid #d2d2d7;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.variation-state-select,
+.localization-state-select {
+    padding: 6px 8px;
+    border: 1px solid #d2d2d7;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    background-color: #fff;
+}
+
+.add-variation-btn {
+    margin-top: 8px;
+    font-size: 0.8rem;
+    padding: 4px 8px;
+}
+
+.simple-localization {
+    display: grid;
+    grid-template-columns: 1fr 2fr 100px 40px;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 8px;
+    padding: 8px;
+    background-color: #fff;
+    border-radius: 6px;
+    border: 1px solid #e5e5e7;
+}
+
+.localization-lang-input,
+.localization-value-input {
+    padding: 6px 8px;
+    border: 1px solid #d2d2d7;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+    .variation-entry,
+    .simple-localization {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+    
+    .variation-entry input,
+    .variation-entry select,
+    .simple-localization input,
+    .simple-localization select {
+        font-size: 0.9rem;
+    }
+}

@@ -57,7 +57,7 @@ class XCStringEditor {
         this.uploadArea.addEventListener('dragleave', this.handleDragLeave.bind(this));
         this.uploadArea.addEventListener('drop', this.handleDrop.bind(this));
         this.fileInput.addEventListener('change', this.handleFileSelect.bind(this));
-        this.addStringBtn.addEventListener('click', this.addNewString.bind(this));
+        this.addStringBtn.addEventListener('click', async () => await this.addNewString());
         this.exportBtn.addEventListener('click', this.exportFile.bind(this));
         
         // Auth listeners
@@ -130,7 +130,7 @@ class XCStringEditor {
                 // OAuth2 login successful, refresh page to update UI
                 window.location.href = window.location.pathname;
             } else if (urlParams.has('oauth_error')) {
-                alert('OAuth2 login failed: ' + urlParams.get('oauth_error'));
+                this.showNotification('OAuth2 login failed: ' + urlParams.get('oauth_error'), 'error');
                 // Clear the error from URL
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
@@ -269,10 +269,10 @@ class XCStringEditor {
                 this.showFileManagement();
                 this.loadUserFiles();
             } else {
-                alert('Login failed: ' + result.error);
+                this.showNotification('Login failed: ' + result.error, 'error');
             }
         } catch (error) {
-            alert('Login error: ' + error.message);
+            this.showNotification('Login error: ' + error.message, 'error');
         }
     }
 
@@ -291,13 +291,13 @@ class XCStringEditor {
             
             const result = await response.json();
             if (result.success) {
-                alert('Registration successful! Please login.');
+                this.showNotification('Registration successful! Please login.', 'success');
                 this.showLoginForm();
             } else {
-                alert('Registration failed: ' + result.error);
+                this.showNotification('Registration failed: ' + result.error, 'error');
             }
         } catch (error) {
-            alert('Registration error: ' + error.message);
+            this.showNotification('Registration error: ' + error.message, 'error');
         }
     }
 
@@ -435,10 +435,10 @@ class XCStringEditor {
                 
                 this.renderEditor();
             } else {
-                alert('Failed to load file: ' + result.error);
+                this.showNotification('Failed to load file: ' + result.error, 'error');
             }
         } catch (error) {
-            alert('Error loading file: ' + error.message);
+            this.showNotification('Error loading file: ' + error.message, 'error');
         }
     }
 
@@ -461,10 +461,10 @@ class XCStringEditor {
                     this.hideEditor();
                 }
             } else {
-                alert('Failed to delete file: ' + result.error);
+                this.showNotification('Failed to delete file: ' + result.error, 'error');
             }
         } catch (error) {
-            alert('Error deleting file: ' + error.message);
+            this.showNotification('Error deleting file: ' + error.message, 'error');
         }
     }
 
@@ -539,10 +539,10 @@ class XCStringEditor {
                 this.shareBtn.style.display = 'inline-block';
                 this.loadUserFiles(); // Refresh file list
             } else {
-                alert('Failed to save file: ' + result.error);
+                this.showNotification('Failed to save file: ' + result.error, 'error');
             }
         } catch (error) {
-            alert('Error saving file: ' + error.message);
+            this.showNotification('Error saving file: ' + error.message, 'error');
         }
     }
 
@@ -609,12 +609,12 @@ class XCStringEditor {
             
             const result = await response.json();
             if (result.success) {
-                alert('File shared successfully!');
+                this.showNotification('File shared successfully!', 'success');
             } else {
-                alert('Failed to share file: ' + result.error);
+                this.showNotification('Failed to share file: ' + result.error, 'error');
             }
         } catch (error) {
-            alert('Error sharing file: ' + error.message);
+            this.showNotification('Error sharing file: ' + error.message, 'error');
         }
     }
 
@@ -790,8 +790,8 @@ class XCStringEditor {
             this.updateStringComment(key, e.target.value);
         });
 
-        addLocalizationBtn.addEventListener('click', () => {
-            this.addLocalization(key);
+        addLocalizationBtn.addEventListener('click', async () => {
+            await this.addLocalization(key);
         });
 
         this.stringsContainer.appendChild(entryDiv);
@@ -803,49 +803,200 @@ class XCStringEditor {
         
         Object.keys(localizations).forEach(lang => {
             const localization = localizations[lang];
-            const value = localization.stringUnit ? localization.stringUnit.value : '';
             
-            // Create localization entry using DOM methods
-            const entryDiv = document.createElement('div');
-            entryDiv.className = 'localization-entry';
-            
-            const langInput = document.createElement('input');
-            langInput.type = 'text';
-            langInput.value = lang; // Direct assignment handles quotes safely
-            langInput.placeholder = 'Language';
-            
-            const valueInput = document.createElement('input');
-            valueInput.type = 'text';
-            valueInput.value = value; // Direct assignment handles quotes safely
-            valueInput.placeholder = 'Translation';
-            
-            const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'btn btn-danger btn-sm';
-            deleteBtn.textContent = '×';
-            
-            // Add event listeners
-            langInput.addEventListener('change', (e) => {
-                this.updateLocalizationLang(stringKey, lang, e.target.value);
-            });
-            
-            valueInput.addEventListener('change', (e) => {
-                this.updateLocalizationValue(stringKey, lang, e.target.value);
-            });
-            
-            deleteBtn.addEventListener('click', () => {
-                this.deleteLocalization(stringKey, lang);
-            });
-            
-            entryDiv.appendChild(langInput);
-            entryDiv.appendChild(valueInput);
-            entryDiv.appendChild(deleteBtn);
-            
-            container.appendChild(entryDiv);
+            // Check if this localization has variations
+            if (localization.variations) {
+                this.renderVariationLocalization(container, stringKey, lang, localization);
+            } else if (localization.stringUnit) {
+                this.renderSimpleLocalization(container, stringKey, lang, localization);
+            }
         });
     }
 
-    addNewString() {
-        const key = prompt('Enter string key:');
+    renderSimpleLocalization(container, stringKey, lang, localization) {
+        const value = localization.stringUnit ? localization.stringUnit.value : '';
+        const state = localization.stringUnit ? localization.stringUnit.state : 'new';
+        
+        // Create localization entry using DOM methods
+        const entryDiv = document.createElement('div');
+        entryDiv.className = 'localization-entry simple-localization';
+        
+        const langInput = document.createElement('input');
+        langInput.type = 'text';
+        langInput.value = lang;
+        langInput.placeholder = 'Language';
+        langInput.className = 'localization-lang-input';
+        
+        const valueInput = document.createElement('input');
+        valueInput.type = 'text';
+        valueInput.value = value;
+        valueInput.placeholder = 'Translation';
+        valueInput.className = 'localization-value-input';
+        
+        const stateSelect = document.createElement('select');
+        stateSelect.className = 'localization-state-select';
+        ['new', 'translated', 'needs_review'].forEach(stateOption => {
+            const option = document.createElement('option');
+            option.value = stateOption;
+            option.textContent = stateOption.replace('_', ' ');
+            option.selected = stateOption === state;
+            stateSelect.appendChild(option);
+        });
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn btn-danger btn-sm';
+        deleteBtn.textContent = '×';
+        
+        // Add event listeners
+        langInput.addEventListener('change', (e) => {
+            this.updateLocalizationLang(stringKey, lang, e.target.value);
+        });
+        
+        valueInput.addEventListener('change', (e) => {
+            this.updateLocalizationValue(stringKey, lang, e.target.value);
+        });
+        
+        stateSelect.addEventListener('change', (e) => {
+            this.updateLocalizationState(stringKey, lang, e.target.value);
+        });
+        
+        deleteBtn.addEventListener('click', () => {
+            this.deleteLocalization(stringKey, lang);
+        });
+        
+        entryDiv.appendChild(langInput);
+        entryDiv.appendChild(valueInput);
+        entryDiv.appendChild(stateSelect);
+        entryDiv.appendChild(deleteBtn);
+        
+        container.appendChild(entryDiv);
+    }
+
+    renderVariationLocalization(container, stringKey, lang, localization) {
+        // Create variation container
+        const variationContainer = document.createElement('div');
+        variationContainer.className = 'variation-container';
+        
+        // Language header with delete button
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'variation-header';
+        
+        const langLabel = document.createElement('strong');
+        langLabel.textContent = `${lang} (with variations)`;
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn btn-danger btn-sm';
+        deleteBtn.textContent = '× Delete Language';
+        deleteBtn.addEventListener('click', () => {
+            this.deleteLocalization(stringKey, lang);
+        });
+        
+        headerDiv.appendChild(langLabel);
+        headerDiv.appendChild(deleteBtn);
+        variationContainer.appendChild(headerDiv);
+        
+        // Render each variation type (plural, device, etc.)
+        Object.keys(localization.variations).forEach(variationType => {
+            const variationTypeDiv = document.createElement('div');
+            variationTypeDiv.className = 'variation-type';
+            
+            const typeHeader = document.createElement('div');
+            typeHeader.className = 'variation-type-header';
+            typeHeader.textContent = `${variationType} variations:`;
+            variationTypeDiv.appendChild(typeHeader);
+            
+            const variations = localization.variations[variationType];
+            Object.keys(variations).forEach(variationKey => {
+                const variation = variations[variationKey];
+                if (variation.stringUnit) {
+                    const variationEntry = this.createVariationEntry(
+                        stringKey, lang, variationType, variationKey, variation.stringUnit
+                    );
+                    variationTypeDiv.appendChild(variationEntry);
+                }
+            });
+            
+            // Add button to add new variation
+            const addVariationBtn = document.createElement('button');
+            addVariationBtn.className = 'btn btn-secondary btn-sm add-variation-btn';
+            addVariationBtn.textContent = `Add ${variationType} variation`;
+            addVariationBtn.addEventListener('click', () => {
+                this.addVariation(stringKey, lang, variationType);
+            });
+            variationTypeDiv.appendChild(addVariationBtn);
+            
+            variationContainer.appendChild(variationTypeDiv);
+        });
+        
+        // Add button to add new variation type
+        const addVariationTypeBtn = document.createElement('button');
+        addVariationTypeBtn.className = 'btn btn-secondary btn-sm';
+        addVariationTypeBtn.textContent = 'Add variation type';
+        addVariationTypeBtn.addEventListener('click', () => {
+            this.addVariationType(stringKey, lang);
+        });
+        variationContainer.appendChild(addVariationTypeBtn);
+        
+        container.appendChild(variationContainer);
+    }
+
+    createVariationEntry(stringKey, lang, variationType, variationKey, stringUnit) {
+        const entryDiv = document.createElement('div');
+        entryDiv.className = 'variation-entry';
+        
+        const keyInput = document.createElement('input');
+        keyInput.type = 'text';
+        keyInput.value = variationKey;
+        keyInput.placeholder = 'Variation key (e.g., one, other)';
+        keyInput.className = 'variation-key-input';
+        
+        const valueInput = document.createElement('input');
+        valueInput.type = 'text';
+        valueInput.value = stringUnit.value || '';
+        valueInput.placeholder = 'Translation';
+        valueInput.className = 'variation-value-input';
+        
+        const stateSelect = document.createElement('select');
+        stateSelect.className = 'variation-state-select';
+        ['new', 'translated', 'needs_review'].forEach(stateOption => {
+            const option = document.createElement('option');
+            option.value = stateOption;
+            option.textContent = stateOption.replace('_', ' ');
+            option.selected = stateOption === (stringUnit.state || 'new');
+            stateSelect.appendChild(option);
+        });
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn btn-danger btn-sm';
+        deleteBtn.textContent = '×';
+        
+        // Add event listeners
+        keyInput.addEventListener('change', (e) => {
+            this.updateVariationKey(stringKey, lang, variationType, variationKey, e.target.value);
+        });
+        
+        valueInput.addEventListener('change', (e) => {
+            this.updateVariationValue(stringKey, lang, variationType, variationKey, e.target.value);
+        });
+        
+        stateSelect.addEventListener('change', (e) => {
+            this.updateVariationState(stringKey, lang, variationType, variationKey, e.target.value);
+        });
+        
+        deleteBtn.addEventListener('click', () => {
+            this.deleteVariation(stringKey, lang, variationType, variationKey);
+        });
+        
+        entryDiv.appendChild(keyInput);
+        entryDiv.appendChild(valueInput);
+        entryDiv.appendChild(stateSelect);
+        entryDiv.appendChild(deleteBtn);
+        
+        return entryDiv;
+    }
+
+    async addNewString() {
+        const key = await this.showInputDialog('Add New String', 'Enter string key:', '');
         if (key && key.trim()) {
             if (!this.data.strings) {
                 this.data.strings = {};
@@ -910,8 +1061,8 @@ class XCStringEditor {
         }
     }
 
-    addLocalization(stringKey) {
-        const lang = prompt('Enter language code (e.g., es, fr, de):');
+    async addLocalization(stringKey) {
+        const lang = await this.showInputDialog('Add Localization', 'Enter language code (e.g., es, fr, de):', '');
         if (lang && lang.trim()) {
             if (!this.data.strings[stringKey].localizations[lang]) {
                 this.data.strings[stringKey].localizations[lang] = {
@@ -926,11 +1077,141 @@ class XCStringEditor {
         }
     }
 
-    deleteLocalization(stringKey, lang) {
-        if (confirm(`Delete localization for "${lang}"?`)) {
+    async deleteLocalization(stringKey, lang) {
+        const shouldDelete = await this.showConfirmDialog(
+            'Delete Localization',
+            `Delete localization for "${lang}"?`
+        );
+        if (shouldDelete) {
             delete this.data.strings[stringKey].localizations[lang];
             this.markModified();
             this.renderEditor();
+        }
+    }
+
+    // Variation management functions
+    updateLocalizationState(stringKey, lang, newState) {
+        if (this.data.strings[stringKey] && this.data.strings[stringKey].localizations[lang]) {
+            if (this.data.strings[stringKey].localizations[lang].stringUnit) {
+                this.data.strings[stringKey].localizations[lang].stringUnit.state = newState;
+                this.markModified();
+            }
+        }
+    }
+
+    updateVariationKey(stringKey, lang, variationType, oldKey, newKey) {
+        if (oldKey !== newKey && newKey.trim()) {
+            const localization = this.data.strings[stringKey].localizations[lang];
+            if (localization.variations && localization.variations[variationType] && localization.variations[variationType][oldKey]) {
+                localization.variations[variationType][newKey] = localization.variations[variationType][oldKey];
+                delete localization.variations[variationType][oldKey];
+                this.markModified();
+                this.renderEditor();
+            }
+        }
+    }
+
+    updateVariationValue(stringKey, lang, variationType, variationKey, newValue) {
+        const localization = this.data.strings[stringKey].localizations[lang];
+        if (localization.variations && localization.variations[variationType] && localization.variations[variationType][variationKey]) {
+            if (!localization.variations[variationType][variationKey].stringUnit) {
+                localization.variations[variationType][variationKey].stringUnit = { state: 'new', value: '' };
+            }
+            localization.variations[variationType][variationKey].stringUnit.value = newValue;
+            this.markModified();
+        }
+    }
+
+    updateVariationState(stringKey, lang, variationType, variationKey, newState) {
+        const localization = this.data.strings[stringKey].localizations[lang];
+        if (localization.variations && localization.variations[variationType] && localization.variations[variationType][variationKey]) {
+            if (!localization.variations[variationType][variationKey].stringUnit) {
+                localization.variations[variationType][variationKey].stringUnit = { state: 'new', value: '' };
+            }
+            localization.variations[variationType][variationKey].stringUnit.state = newState;
+            this.markModified();
+        }
+    }
+
+    async addVariation(stringKey, lang, variationType) {
+        const variationKey = await this.showInputDialog(
+            'Add Variation',
+            `Enter variation key for ${variationType} (e.g., one, other, zero):`,
+            ''
+        );
+        
+        if (variationKey && variationKey.trim()) {
+            const localization = this.data.strings[stringKey].localizations[lang];
+            if (!localization.variations) {
+                localization.variations = {};
+            }
+            if (!localization.variations[variationType]) {
+                localization.variations[variationType] = {};
+            }
+            
+            localization.variations[variationType][variationKey] = {
+                stringUnit: {
+                    state: 'new',
+                    value: ''
+                }
+            };
+            
+            this.markModified();
+            this.renderEditor();
+        }
+    }
+
+    async addVariationType(stringKey, lang) {
+        const variationType = await this.showInputDialog(
+            'Add Variation Type',
+            'Enter variation type (e.g., plural, device, width):',
+            ''
+        );
+        
+        if (variationType && variationType.trim()) {
+            const localization = this.data.strings[stringKey].localizations[lang];
+            if (!localization.variations) {
+                localization.variations = {};
+            }
+            
+            localization.variations[variationType] = {
+                other: {
+                    stringUnit: {
+                        state: 'new',
+                        value: ''
+                    }
+                }
+            };
+            
+            this.markModified();
+            this.renderEditor();
+        }
+    }
+
+    deleteVariation(stringKey, lang, variationType, variationKey) {
+        const shouldDelete = confirm(`Delete variation "${variationKey}" for ${variationType}?`);
+        if (shouldDelete) {
+            const localization = this.data.strings[stringKey].localizations[lang];
+            if (localization.variations && localization.variations[variationType]) {
+                delete localization.variations[variationType][variationKey];
+                
+                // If no variations left in this type, remove the type
+                if (Object.keys(localization.variations[variationType]).length === 0) {
+                    delete localization.variations[variationType];
+                }
+                
+                // If no variation types left, remove variations and convert to simple stringUnit
+                if (Object.keys(localization.variations).length === 0) {
+                    delete localization.variations;
+                    localization.stringUnit = {
+                        state: 'new',
+                        value: ''
+                    };
+                }
+                
+                this.markModified();
+                this.renderEditor();
+            }
         }
     }
 
@@ -956,10 +1237,10 @@ class XCStringEditor {
                     'exported.xcstrings';
                 this.downloadFile(result.xcstring, filename);
             } else {
-                alert('Error generating file: ' + result.error);
+                this.showNotification('Error generating file: ' + result.error, 'error');
             }
         } catch (error) {
-            alert('Error exporting file: ' + error.message);
+            this.showNotification('Error exporting file: ' + error.message, 'error');
         }
     }
 
@@ -1035,9 +1316,7 @@ class XCStringEditor {
         return new Promise((resolve) => {
             this.inputTitle.textContent = title;
             this.inputLabel.textContent = label;
-            this.inputField.value = defaultValue;
             this.inputModal.style.display = 'block';
-            this.inputField.focus();
             
             const handleSubmit = (e) => {
                 e.preventDefault();
@@ -1058,10 +1337,18 @@ class XCStringEditor {
             this.inputForm = document.getElementById('inputForm');
             this.inputCancel.replaceWith(this.inputCancel.cloneNode(true));
             this.inputCancel = document.getElementById('inputCancel');
+            this.inputField = document.getElementById('inputField');
+            this.closeInputModal.replaceWith(this.closeInputModal.cloneNode(true));
+            this.closeInputModal = document.getElementById('closeInputModal');
+            
+            // Set value and focus after re-assignment
+            this.inputField.value = defaultValue;
+            this.inputField.focus();
             
             // Add new listeners
             this.inputForm.addEventListener('submit', handleSubmit);
             this.inputCancel.addEventListener('click', handleCancel);
+            this.closeInputModal.addEventListener('click', handleCancel);
         });
     }
 
