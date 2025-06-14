@@ -68,6 +68,55 @@ return [
         ],
     ],
     
+    // AI translation and proofreading settings
+    'ai' => [
+        'enabled' => $_ENV['AI_ENABLED'] ?? false, // Set to true to enable AI features
+        'providers' => [
+            'openai' => [
+                'enabled' => $_ENV['OPENAI_ENABLED'] ?? false,
+                'api_key' => $_ENV['OPENAI_API_KEY'] ?? '',
+                'base_url' => 'https://api.openai.com/v1', // Standard OpenAI API
+                'models' => $_ENV['OPENAI_MODELS'] ? explode(',', $_ENV['OPENAI_MODELS']) : [
+                    'gpt-4o',
+                    'gpt-4o-mini',
+                    'gpt-4-turbo',
+                    'gpt-3.5-turbo'
+                ],
+            ],
+            'anthropic' => [
+                'enabled' => $_ENV['ANTHROPIC_ENABLED'] ?? false,
+                'api_key' => $_ENV['ANTHROPIC_API_KEY'] ?? '',
+                'base_url' => 'https://api.anthropic.com',
+                'models' => $_ENV['ANTHROPIC_MODELS'] ? explode(',', $_ENV['ANTHROPIC_MODELS']) : [
+                    'claude-3-5-sonnet-20241022',
+                    'claude-3-5-haiku-20241022',
+                    'claude-3-opus-20240229',
+                    'claude-3-sonnet-20240229',
+                    'claude-3-haiku-20240307'
+                ],
+            ],
+            'openai_compatible' => [
+                'enabled' => $_ENV['OPENAI_COMPATIBLE_ENABLED'] ?? false,
+                'api_key' => $_ENV['OPENAI_COMPATIBLE_API_KEY'] ?? '',
+                'base_url' => $_ENV['OPENAI_COMPATIBLE_BASE_URL'] ?? '', // e.g., 'https://api.groq.com/openai/v1'
+                'models' => $_ENV['OPENAI_COMPATIBLE_MODELS'] ? explode(',', $_ENV['OPENAI_COMPATIBLE_MODELS']) : [
+                    'llama-3.1-70b-versatile',
+                    'llama-3.1-8b-instant',
+                    'mixtral-8x7b-32768'
+                ],
+            ],
+        ],
+        'default_provider' => $_ENV['AI_DEFAULT_PROVIDER'] ?? 'openai',
+        'default_model' => $_ENV['AI_DEFAULT_MODEL'] ?? 'gpt-4o-mini',
+        'translation' => [
+            'enabled' => $_ENV['AI_TRANSLATION_ENABLED'] ?? true,
+            'max_context_strings' => 5, // Number of related strings to include as context
+        ],
+        'proofreading' => [
+            'enabled' => $_ENV['AI_PROOFREADING_ENABLED'] ?? true,
+        ],
+    ],
+    
     // Application settings
     'app' => [
         'name' => 'XCString Editor',

@@ -170,8 +170,26 @@
                         <select id="filterLanguage" class="filter-select">
                             <option value="">No Filter</option>
                             <option value="any">Any Language (missing translations)</option>
+                            <option value="needs_review">Needs Review</option>
                         </select>
                         <span id="filterStatus" class="filter-status"></span>
+                    </div>
+                </div>
+                
+                <!-- AI Section -->
+                <div class="ai-section" id="aiSection" style="display: none;">
+                    <div class="ai-header">
+                        <h4>AI Translation & Proofreading</h4>
+                    </div>
+                    <div class="ai-controls">
+                        <select id="aiProvider" class="ai-select">
+                            <option value="">Select AI Provider</option>
+                        </select>
+                        <select id="aiModel" class="ai-select">
+                            <option value="">Select Model</option>
+                        </select>
+                        <button id="translateMissingBtn" class="btn btn-primary btn-sm">Translate Missing</button>
+                        <button id="proofreadAllBtn" class="btn btn-secondary btn-sm">Proofread All</button>
                     </div>
                 </div>
                 

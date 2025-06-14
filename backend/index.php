@@ -15,12 +15,14 @@ $config = require '../config.php';
 require_once 'Database.php';
 require_once 'Auth.php';
 require_once 'FileManager.php';
+require_once 'AIService.php';
 
 // Initialize services
 try {
     $db = new Database($config);
     $auth = new Auth($db, $config);
     $fileManager = new FileManager($db, $config);
+    $aiService = new AIService($config);
     
     // Initialize database schema if needed (for SQLite)
     if ($config['database']['driver'] === 'sqlite') {
@@ -196,6 +198,62 @@ try {
                 $xcstring = generateXcString($input['data']);
                 echo json_encode(['success' => true, 'xcstring' => $xcstring]);
                 
+            } elseif (strpos($requestUri, '/ai/translate') !== false) {
+                if (!$currentUser) {
+                    throw new Exception('Authentication required');
+                }
+                if (!isset($input['text'], $input['source_language'], $input['target_language'])) {
+                    throw new Exception('Text, source_language, and target_language are required');
+                }
+                
+                $context = [];
+                if (isset($input['context_strings'])) {
+                    $context = $aiService->buildTranslationContext(
+                        $input['string_key'] ?? '',
+                        $input['context_strings'],
+                        $input['source_language'],
+                        $input['target_language']
+                    );
+                }
+                
+                $translation = $aiService->translate(
+                    $input['text'],
+                    $input['source_language'],
+                    $input['target_language'],
+                    $context,
+                    $input['provider'] ?? null,
+                    $input['model'] ?? null
+                );
+                
+                echo json_encode(['success' => true, 'translation' => $translation]);
+                
+            } elseif (strpos($requestUri, '/ai/proofread') !== false) {
+                if (!$currentUser) {
+                    throw new Exception('Authentication required');
+                }
+                if (!isset($input['text'], $input['language'])) {
+                    throw new Exception('Text and language are required');
+                }
+                
+                $context = [];
+                if (isset($input['context_strings'])) {
+                    $context = $aiService->buildContext(
+                        $input['string_key'] ?? '',
+                        $input['context_strings'],
+                        $input['language']
+                    );
+                }
+                
+                $review = $aiService->proofread(
+                    $input['text'],
+                    $input['language'],
+                    $context,
+                    $input['provider'] ?? null,
+                    $input['model'] ?? null
+                );
+                
+                echo json_encode(['success' => true, 'review' => $review]);
+                
             } else {
                 throw new Exception('Invalid endpoint');
             }
@@ -210,7 +268,9 @@ try {
                     'config' => [
                         'registration_enabled' => $config['registration']['enabled'],
                         'oauth2_enabled' => $config['oauth2']['enabled'],
-                        'oauth2_providers' => array_keys($oauthProviders)
+                        'oauth2_providers' => array_keys($oauthProviders),
+                        'ai_enabled' => $aiService->isEnabled(),
+                        'ai_providers' => $aiService->getAvailableProviders()
                     ]
                 ]);
                 

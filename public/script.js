@@ -5,6 +5,9 @@ class XCStringEditor {
         this.currentFileId = null;
         this.isModified = false;
         this.config = null;
+        this.aiConfig = null;
+        this.selectedAIProvider = null;
+        this.selectedAIModel = null;
         
         this.initializeElements();
         this.setupEventListeners();
@@ -43,6 +46,13 @@ class XCStringEditor {
         this.filterLanguage = document.getElementById('filterLanguage');
         this.filterStatus = document.getElementById('filterStatus');
         this.clearFilterBtn = document.getElementById('clearFilterBtn');
+        
+        // AI elements
+        this.aiSection = document.getElementById('aiSection');
+        this.aiProvider = document.getElementById('aiProvider');
+        this.aiModel = document.getElementById('aiModel');
+        this.translateMissingBtn = document.getElementById('translateMissingBtn');
+        this.proofreadAllBtn = document.getElementById('proofreadAllBtn');
         
         // Notification and modal elements
         this.notifications = document.getElementById('notifications');
@@ -125,6 +135,19 @@ class XCStringEditor {
         this.clearFilterBtn.addEventListener('click', () => {
             this.clearFilter();
         });
+        
+        // AI listeners
+        this.aiProvider.addEventListener('change', () => {
+            this.updateAIModels();
+        });
+        
+        this.translateMissingBtn.addEventListener('click', () => {
+            this.translateMissingLocalizations();
+        });
+        
+        this.proofreadAllBtn.addEventListener('click', () => {
+            this.proofreadAllLocalizations();
+        });
     }
 
     async checkAuthStatus() {
@@ -135,8 +158,10 @@ class XCStringEditor {
             if (result.success) {
                 this.currentUser = result.user;
                 this.config = result.config;
+                this.aiConfig = result.config;
                 this.updateAuthUI();
                 this.updateOAuth2UI();
+                this.updateAIUI();
                 if (this.currentUser) {
                     this.showFileManagement();
                     this.loadUserFiles();
@@ -1085,10 +1110,36 @@ class XCStringEditor {
                 }
             }
             return true; // Hide this entry (it's complete in all languages)
+        } else if (filterLanguage === 'needs_review') {
+            // Show entries that have any localization with 'needs_review' state
+            return !this.hasNeedsReviewState(stringData);
         } else {
             // Show entries that are incomplete for specific language
             return this.isTranslated(stringData, filterLanguage);
         }
+    }
+    
+    hasNeedsReviewState(stringData) {
+        if (!stringData.localizations) return false;
+        
+        for (const [lang, localization] of Object.entries(stringData.localizations)) {
+            if (localization.stringUnit && localization.stringUnit.state === 'needs_review') {
+                return true;
+            }
+            
+            // Check variations for needs_review state
+            if (localization.variations) {
+                for (const [variationType, variations] of Object.entries(localization.variations)) {
+                    for (const [variationKey, variation] of Object.entries(variations)) {
+                        if (variation.stringUnit && variation.stringUnit.state === 'needs_review') {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        
+        return false;
     }
 
     isTranslated(stringData, language) {
@@ -1148,6 +1199,8 @@ class XCStringEditor {
         
         if (filterLanguage === 'any') {
             statusText = `Showing ${visibleCount} of ${totalCount} entries with incomplete translations`;
+        } else if (filterLanguage === 'needs_review') {
+            statusText = `Showing ${visibleCount} of ${totalCount} entries needing review`;
         } else {
             statusText = `Showing ${visibleCount} of ${totalCount} entries incomplete for ${filterLanguage}`;
         }
@@ -1201,6 +1254,11 @@ class XCStringEditor {
         const entryDiv = document.createElement('div');
         entryDiv.className = 'localization-entry simple-localization';
         
+        // Add highlighting for needs review state
+        if (state === 'needs_review') {
+            entryDiv.classList.add('needs-review');
+        }
+        
         const langInput = document.createElement('input');
         langInput.type = 'text';
         langInput.value = lang;
@@ -1249,12 +1307,33 @@ class XCStringEditor {
             this.deleteLocalization(stringKey, lang);
         });
         
+        // AI features
+        const aiControls = this.createAIControls(stringKey, lang, localization);
+        
         entryDiv.appendChild(langInput);
         entryDiv.appendChild(valueInput);
         entryDiv.appendChild(stateSelect);
+        if (aiControls.proofreadIndicator) {
+            entryDiv.appendChild(aiControls.proofreadIndicator);
+        }
         entryDiv.appendChild(deleteBtn);
         
+        // Add AI action buttons
+        if (aiControls.buttons.length > 0) {
+            const aiButtonsDiv = document.createElement('div');
+            aiButtonsDiv.className = 'ai-buttons';
+            aiControls.buttons.forEach(button => {
+                aiButtonsDiv.appendChild(button);
+            });
+            entryDiv.appendChild(aiButtonsDiv);
+        }
+        
         container.appendChild(entryDiv);
+        
+        // Add proofreading feedback below the entry
+        if (aiControls.feedback) {
+            container.appendChild(aiControls.feedback);
+        }
     }
 
     renderVariationLocalization(container, stringKey, lang, localization) {
@@ -1830,6 +1909,362 @@ class XCStringEditor {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+    }
+
+    // AI Features
+    updateAIUI() {
+        if (!this.aiConfig || !this.aiConfig.ai_enabled || !this.currentUser) {
+            this.aiSection.style.display = 'none';
+            return;
+        }
+        
+        this.aiSection.style.display = 'block';
+        
+        // Populate AI providers
+        this.aiProvider.innerHTML = '<option value="">Select AI Provider</option>';
+        Object.keys(this.aiConfig.ai_providers).forEach(provider => {
+            const option = document.createElement('option');
+            option.value = provider;
+            option.textContent = provider.charAt(0).toUpperCase() + provider.slice(1);
+            this.aiProvider.appendChild(option);
+        });
+        
+        // Set default provider if available
+        if (Object.keys(this.aiConfig.ai_providers).length > 0) {
+            const defaultProvider = Object.keys(this.aiConfig.ai_providers)[0];
+            this.aiProvider.value = defaultProvider;
+            this.selectedAIProvider = defaultProvider;
+            this.updateAIModels();
+        }
+    }
+    
+    updateAIModels() {
+        const provider = this.aiProvider.value;
+        this.aiModel.innerHTML = '<option value="">Select Model</option>';
+        
+        if (provider && this.aiConfig.ai_providers[provider]) {
+            this.selectedAIProvider = provider;
+            const models = this.aiConfig.ai_providers[provider].models;
+            models.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model;
+                option.textContent = model;
+                this.aiModel.appendChild(option);
+            });
+            
+            // Set first model as default
+            if (models.length > 0) {
+                this.aiModel.value = models[0];
+                this.selectedAIModel = models[0];
+            }
+        }
+    }
+    
+    async translateMissingLocalizations() {
+        if (!this.selectedAIProvider || !this.selectedAIModel) {
+            this.showNotification('Please select an AI provider and model first', 'warning');
+            return;
+        }
+        
+        if (!this.data || !this.data.strings) {
+            this.showNotification('No strings to translate', 'warning');
+            return;
+        }
+        
+        const sourceLanguage = this.data.sourceLanguage || 'en';
+        const allLanguages = new Set();
+        
+        // Collect all target languages
+        Object.values(this.data.strings).forEach(stringData => {
+            if (stringData.localizations) {
+                Object.keys(stringData.localizations).forEach(lang => {
+                    if (lang !== sourceLanguage) {
+                        allLanguages.add(lang);
+                    }
+                });
+            }
+        });
+        
+        if (allLanguages.size === 0) {
+            this.showNotification('No target languages found to translate to', 'warning');
+            return;
+        }
+        
+        let translatedCount = 0;
+        this.showNotification('Starting AI translation...', 'info');
+        
+        for (const targetLanguage of allLanguages) {
+            for (const [stringKey, stringData] of Object.entries(this.data.strings)) {
+                const sourceText = stringData.localizations?.[sourceLanguage]?.stringUnit?.value;
+                const targetLocalization = stringData.localizations?.[targetLanguage];
+                
+                // Only translate if source exists and target is missing or empty
+                if (sourceText && (!targetLocalization || !targetLocalization.stringUnit?.value)) {
+                    try {
+                        const translation = await this.translateText(
+                            sourceText, 
+                            sourceLanguage, 
+                            targetLanguage, 
+                            stringKey
+                        );
+                        
+                        // Ensure localizations structure exists
+                        if (!stringData.localizations) {
+                            stringData.localizations = {};
+                        }
+                        if (!stringData.localizations[targetLanguage]) {
+                            stringData.localizations[targetLanguage] = {
+                                stringUnit: { state: 'new', value: '' }
+                            };
+                        }
+                        
+                        // Update with translation and set state to needs_review
+                        stringData.localizations[targetLanguage].stringUnit.value = translation;
+                        stringData.localizations[targetLanguage].stringUnit.state = 'needs_review';
+                        
+                        translatedCount++;
+                        this.markModified();
+                        
+                    } catch (error) {
+                        console.error(`Translation failed for ${stringKey} (${targetLanguage}):`, error);
+                    }
+                }
+            }
+        }
+        
+        if (translatedCount > 0) {
+            this.renderEditor();
+            this.updateProgressIndicators();
+            this.showNotification(`Translated ${translatedCount} strings using AI`, 'success');
+        } else {
+            this.showNotification('No missing translations found', 'info');
+        }
+    }
+    
+    async proofreadAllLocalizations() {
+        if (!this.selectedAIProvider || !this.selectedAIModel) {
+            this.showNotification('Please select an AI provider and model first', 'warning');
+            return;
+        }
+        
+        if (!this.data || !this.data.strings) {
+            this.showNotification('No strings to proofread', 'warning');
+            return;
+        }
+        
+        let proofreadCount = 0;
+        this.showNotification('Starting AI proofreading...', 'info');
+        
+        for (const [stringKey, stringData] of Object.entries(this.data.strings)) {
+            if (stringData.localizations) {
+                for (const [language, localization] of Object.entries(stringData.localizations)) {
+                    const text = localization.stringUnit?.value;
+                    if (text) {
+                        try {
+                            const review = await this.proofreadText(text, language, stringKey);
+                            
+                            // Store proofreading result
+                            if (!localization.stringUnit.ai_review) {
+                                localization.stringUnit.ai_review = {};
+                            }
+                            localization.stringUnit.ai_review = review;
+                            proofreadCount++;
+                            
+                        } catch (error) {
+                            console.error(`Proofreading failed for ${stringKey} (${language}):`, error);
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (proofreadCount > 0) {
+            this.renderEditor();
+            this.showNotification(`Proofread ${proofreadCount} localizations using AI`, 'success');
+        } else {
+            this.showNotification('No localizations found to proofread', 'info');
+        }
+    }
+    
+    async translateText(text, sourceLanguage, targetLanguage, stringKey) {
+        const response = await fetch('/backend/index.php/ai/translate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                text: text,
+                source_language: sourceLanguage,
+                target_language: targetLanguage,
+                string_key: stringKey,
+                context_strings: this.data.strings,
+                provider: this.selectedAIProvider,
+                model: this.selectedAIModel
+            })
+        });
+        
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Translation failed');
+        }
+        
+        return result.translation;
+    }
+    
+    async proofreadText(text, language, stringKey) {
+        const response = await fetch('/backend/index.php/ai/proofread', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                text: text,
+                language: language,
+                string_key: stringKey,
+                context_strings: this.data.strings,
+                provider: this.selectedAIProvider,
+                model: this.selectedAIModel
+            })
+        });
+        
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Proofreading failed');
+        }
+        
+        return result.review;
+    }
+    
+    createAIControls(stringKey, lang, localization) {
+        const controls = {
+            proofreadIndicator: null,
+            buttons: [],
+            feedback: null
+        };
+        
+        if (!this.aiConfig || !this.aiConfig.ai_enabled || !this.currentUser) {
+            return controls;
+        }
+        
+        const text = localization.stringUnit?.value;
+        const aiReview = localization.stringUnit?.ai_review;
+        
+        // Create proofreading indicator (green checkmark for good status)
+        if (aiReview && aiReview.status === 'good') {
+            const indicator = document.createElement('span');
+            indicator.className = 'ai-indicator ai-good';
+            indicator.innerHTML = '✓';
+            indicator.title = 'AI proofreading: Good';
+            controls.proofreadIndicator = indicator;
+        }
+        
+        // Create proofreading feedback display
+        if (aiReview && (aiReview.status === 'wording' || aiReview.status === 'issue')) {
+            const feedbackDiv = document.createElement('div');
+            feedbackDiv.className = `ai-feedback ai-${aiReview.status}`;
+            
+            const statusText = aiReview.status === 'wording' ? 'Wording Suggestion' : 'Issue Found';
+            feedbackDiv.innerHTML = `
+                <strong>${statusText}:</strong> ${aiReview.feedback || 'No feedback provided'}
+            `;
+            controls.feedback = feedbackDiv;
+        }
+        
+        // Create AI action buttons
+        if (text) {
+            // Proofread button
+            const proofreadBtn = document.createElement('button');
+            proofreadBtn.className = 'btn btn-sm btn-secondary ai-btn';
+            proofreadBtn.textContent = 'AI Proofread';
+            proofreadBtn.addEventListener('click', async () => {
+                await this.proofreadSingleLocalization(stringKey, lang);
+            });
+            controls.buttons.push(proofreadBtn);
+        }
+        
+        // Translate button (for missing localizations)
+        const sourceLanguage = this.data.sourceLanguage || 'en';
+        const sourceText = this.data.strings[stringKey]?.localizations?.[sourceLanguage]?.stringUnit?.value;
+        if (sourceText && lang !== sourceLanguage && (!text || text.trim() === '')) {
+            const translateBtn = document.createElement('button');
+            translateBtn.className = 'btn btn-sm btn-primary ai-btn';
+            translateBtn.textContent = 'AI Translate';
+            translateBtn.addEventListener('click', async () => {
+                await this.translateSingleLocalization(stringKey, lang);
+            });
+            controls.buttons.push(translateBtn);
+        }
+        
+        return controls;
+    }
+    
+    async proofreadSingleLocalization(stringKey, lang) {
+        if (!this.selectedAIProvider || !this.selectedAIModel) {
+            this.showNotification('Please select an AI provider and model first', 'warning');
+            return;
+        }
+        
+        const localization = this.data.strings[stringKey]?.localizations?.[lang];
+        const text = localization?.stringUnit?.value;
+        
+        if (!text) {
+            this.showNotification('No text to proofread', 'warning');
+            return;
+        }
+        
+        try {
+            this.showNotification('AI proofreading in progress...', 'info');
+            const review = await this.proofreadText(text, lang, stringKey);
+            
+            // Store the review result
+            if (!localization.stringUnit.ai_review) {
+                localization.stringUnit.ai_review = {};
+            }
+            localization.stringUnit.ai_review = review;
+            
+            // Update the UI
+            this.updateStringEntry(stringKey);
+            this.showNotification('AI proofreading completed', 'success');
+        } catch (error) {
+            this.showNotification('AI proofreading failed: ' + error.message, 'error');
+        }
+    }
+    
+    async translateSingleLocalization(stringKey, lang) {
+        if (!this.selectedAIProvider || !this.selectedAIModel) {
+            this.showNotification('Please select an AI provider and model first', 'warning');
+            return;
+        }
+        
+        const sourceLanguage = this.data.sourceLanguage || 'en';
+        const sourceText = this.data.strings[stringKey]?.localizations?.[sourceLanguage]?.stringUnit?.value;
+        
+        if (!sourceText) {
+            this.showNotification('No source text to translate from', 'warning');
+            return;
+        }
+        
+        try {
+            this.showNotification('AI translation in progress...', 'info');
+            const translation = await this.translateText(sourceText, sourceLanguage, lang, stringKey);
+            
+            // Ensure localization structure exists
+            if (!this.data.strings[stringKey].localizations) {
+                this.data.strings[stringKey].localizations = {};
+            }
+            if (!this.data.strings[stringKey].localizations[lang]) {
+                this.data.strings[stringKey].localizations[lang] = {
+                    stringUnit: { state: 'new', value: '' }
+                };
+            }
+            
+            // Update with translation and set state to needs_review
+            this.data.strings[stringKey].localizations[lang].stringUnit.value = translation;
+            this.data.strings[stringKey].localizations[lang].stringUnit.state = 'needs_review';
+            
+            this.markModified();
+            this.updateStringEntry(stringKey);
+            this.updateProgressIndicators();
+            this.showNotification('AI translation completed', 'success');
+        } catch (error) {
+            this.showNotification('AI translation failed: ' + error.message, 'error');
+        }
     }
 
     // Notification System
