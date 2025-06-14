@@ -9,6 +9,8 @@ WORKDIR /var/www/html
 # Copy application files
 COPY public/ /var/www/html/
 COPY backend/ /var/www/html/backend/
+COPY config.php /var/www/html/config.php.template
+COPY init-db.php /var/www/html/
 
 # Configure Apache to serve from current directory
 RUN echo '<Directory /var/www/html>\n\
@@ -19,8 +21,32 @@ RUN echo '<Directory /var/www/html>\n\
 
 RUN a2enconf xcstring-editor
 
+# Create startup script
+RUN echo '#!/bin/bash\n\
+# Create config.php if it does not exist\n\
+if [ ! -f /var/www/html/config.php ]; then\n\
+    echo "Creating minimal config.php for container startup..."\n\
+    cp /var/www/html/config.php.template /var/www/html/config.php\n\
+fi\n\
+\n\
+# Create data directory for SQLite\n\
+mkdir -p /var/www/html/data\n\
+chown -R www-data:www-data /var/www/html/data\n\
+\n\
+# Initialize database\n\
+echo "Checking database initialization..."\n\
+php /var/www/html/init-db.php\n\
+\n\
+# Ensure proper permissions\n\
+chown -R www-data:www-data /var/www/html/data\n\
+\n\
+# Start Apache\n\
+exec apache2-foreground' > /usr/local/bin/start-xcstring-editor.sh
+
+RUN chmod +x /usr/local/bin/start-xcstring-editor.sh
+
 # Expose port 80
 EXPOSE 80
 
-# Start Apache
-CMD ["apache2-foreground"]
+# Start with our custom script
+CMD ["/usr/local/bin/start-xcstring-editor.sh"]
