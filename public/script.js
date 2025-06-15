@@ -804,7 +804,9 @@ class XCStringEditor {
 
     updateStringEntry(stringKey) {
         // Find and update existing entry instead of re-rendering everything
-        const existingEntry = document.querySelector(`[data-key="${stringKey}"]`);
+        const existingEntry = Array.from(document.querySelectorAll('.string-entry')).find(entry => {
+            return entry.dataset.key === stringKey;
+        });
         if (existingEntry) {
             const stringData = this.data.strings[stringKey];
             if (stringData) {
@@ -1623,7 +1625,9 @@ class XCStringEditor {
     deleteString(key) {
         if (confirm(`Delete string "${key}"?`)) {
             delete this.data.strings[key];
-            const entry = document.querySelector(`[data-key="${key}"]`);
+            const entry = Array.from(document.querySelectorAll('.string-entry')).find(e => {
+                return e.dataset.key === key;
+            });
             if (entry) {
                 entry.remove();
             }
@@ -2970,7 +2974,11 @@ class XCStringEditor {
     // Update specific string entry in UI without full re-render
     updateStringEntryUI(stringKey) {
         console.log(`Attempting to update UI for key: ${stringKey}`);
-        const stringEntry = document.querySelector(`[data-key="${stringKey}"]`);
+        // Use a more robust method to find the element by iterating through all string entries
+        // This avoids CSS selector escaping issues with special characters
+        const stringEntry = Array.from(document.querySelectorAll('.string-entry')).find(entry => {
+            return entry.dataset.key === stringKey;
+        });
         if (!stringEntry) {
             console.warn(`String entry not found for key: ${stringKey}`);
             return;
