@@ -68,6 +68,17 @@ class XCStringEditor {
         this.inputForm = document.getElementById('inputForm');
         this.inputCancel = document.getElementById('inputCancel');
         this.closeInputModal = document.getElementById('closeInputModal');
+        
+        // Status bar elements
+        this.statusBar = document.getElementById('statusBar');
+        this.statusAIOperation = document.getElementById('statusAIOperation');
+        this.statusAIText = document.getElementById('statusAIText');
+        this.statusAIProgressFill = document.getElementById('statusAIProgressFill');
+        this.statusTotalStrings = document.getElementById('statusTotalStrings');
+        this.statusIncompleteStrings = document.getElementById('statusIncompleteStrings');
+        this.statusTopBtn = document.getElementById('statusTopBtn');
+        this.statusBottomBtn = document.getElementById('statusBottomBtn');
+        this.statusNextBtn = document.getElementById('statusNextBtn');
     }
 
     setupEventListeners() {
@@ -147,6 +158,19 @@ class XCStringEditor {
         
         this.proofreadAllBtn.addEventListener('click', () => {
             this.proofreadAllLocalizations();
+        });
+        
+        // Status bar listeners
+        this.statusTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        
+        this.statusBottomBtn.addEventListener('click', () => {
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        });
+        
+        this.statusNextBtn.addEventListener('click', () => {
+            this.navigateToNextIncomplete();
         });
     }
 
@@ -764,6 +788,9 @@ class XCStringEditor {
             
             // Update progress indicators
             this.updateProgressIndicators();
+            
+            // Update status bar counts
+            this.updateStatusBarCounts();
             
             // Reapply filter if one was active
             if (this.filterLanguage && this.filterLanguage.value) {
@@ -1573,6 +1600,7 @@ class XCStringEditor {
             };
             this.markModified();
             this.renderStringEntry(key, this.data.strings[key]);
+            this.updateStatusBarCounts();
         }
     }
 
@@ -1584,6 +1612,7 @@ class XCStringEditor {
                 entry.remove();
             }
             this.markModified();
+            this.updateStatusBarCounts();
         }
     }
 
@@ -1666,6 +1695,7 @@ class XCStringEditor {
                 };
                 this.markModified();
                 this.updateStringEntry(stringKey);
+                this.updateStatusBarCounts();
                 this.showNotification(`Added localization for "${lang}"`, 'success');
             } else {
                 this.showNotification(`Localization for "${lang}" already exists`, 'warning');
@@ -1723,6 +1753,7 @@ class XCStringEditor {
             delete this.data.strings[stringKey].localizations[lang];
             this.markModified();
             this.updateStringEntry(stringKey);
+            this.updateStatusBarCounts();
         }
     }
 
@@ -2077,19 +2108,38 @@ class XCStringEditor {
         });
         
         if (allLanguages.size === 0) {
-            this.showNotification('No target languages found to translate to', 'warning');
-            return;
+            // If no target languages exist but we have strings needing source content, that's still an issue
+            if (stringsNeedingSource.length > 0) {
+                // Don't return early, let the source content warning show
+            } else {
+                this.showNotification('No target languages found to translate to. Add localizations for other languages first.', 'warning');
+                return;
+            }
         }
         
         this.aiOperationCounts = { translated: 0, total: 0 };
         let totalItemsToTranslate = 0;
+        
+        // Also check for strings that need source language content
+        const stringsNeedingSource = [];
+        for (const [stringKey, stringData] of Object.entries(this.data.strings)) {
+            const sourceText = stringData.localizations?.[sourceLanguage]?.stringUnit?.value;
+            if (!sourceText || sourceText.trim() === '') {
+                stringsNeedingSource.push(stringKey);
+            }
+        }
+        
+        if (stringsNeedingSource.length > 0) {
+            this.showNotification(`Found ${stringsNeedingSource.length} strings without source language (${sourceLanguage}) content. Please add source content first.`, 'warning');
+            console.log('Strings needing source content:', stringsNeedingSource);
+        }
         
         // Count total items for progress tracking
         for (const targetLanguage of allLanguages) {
             let languageCount = 0;
             for (const [stringKey, stringData] of Object.entries(this.data.strings)) {
                 const sourceText = stringData.localizations?.[sourceLanguage]?.stringUnit?.value;
-                if (sourceText && !this.isTranslated(stringData, targetLanguage)) {
+                if (sourceText && sourceText.trim() !== '' && !this.isTranslated(stringData, targetLanguage)) {
                     totalItemsToTranslate++;
                     languageCount++;
                 }
@@ -2777,18 +2827,10 @@ class XCStringEditor {
 
     // AI Progress Management
     showAIProgress(title, totalItems = 0) {
-        const section = document.getElementById('aiProgressSection');
-        const titleEl = document.getElementById('aiProgressTitle');
-        const barFill = document.getElementById('aiProgressBarFill');
-        const text = document.getElementById('aiProgressText');
-        const details = document.getElementById('aiProgressDetails');
+        this.statusAIText.textContent = totalItems > 0 ? `${title}: 0 / ${totalItems}` : title;
+        this.statusAIProgressFill.style.width = '0%';
+        this.statusAIOperation.style.display = 'flex';
         
-        titleEl.textContent = title;
-        barFill.style.width = '0%';
-        text.textContent = totalItems > 0 ? `0 / ${totalItems} items processed` : 'Initializing...';
-        details.textContent = '';
-        
-        section.style.display = 'block';
         this.aiProgressState = {
             total: totalItems,
             completed: 0,
@@ -2799,30 +2841,123 @@ class XCStringEditor {
     updateAIProgress(completed, total, message = '', details = '') {
         if (!this.aiProgressState?.isActive) return;
         
-        const barFill = document.getElementById('aiProgressBarFill');
-        const text = document.getElementById('aiProgressText');
-        const detailsEl = document.getElementById('aiProgressDetails');
-        
         const percentage = total > 0 ? (completed / total) * 100 : 0;
-        barFill.style.width = `${percentage}%`;
+        this.statusAIProgressFill.style.width = `${percentage}%`;
         
         if (message) {
-            text.textContent = message;
+            this.statusAIText.textContent = message;
         } else {
-            text.textContent = `${completed} / ${total} items processed`;
-        }
-        
-        if (details) {
-            detailsEl.textContent = details;
+            // Extract title from current text and update with progress
+            const currentText = this.statusAIText.textContent;
+            const title = currentText.split(':')[0];
+            this.statusAIText.textContent = `${title}: ${completed} / ${total}`;
         }
         
         this.aiProgressState.completed = completed;
     }
     
     hideAIProgress() {
-        const section = document.getElementById('aiProgressSection');
-        section.style.display = 'none';
+        this.statusAIOperation.style.display = 'none';
         this.aiProgressState = { isActive: false };
+    }
+    
+    // Navigate to next incomplete string
+    navigateToNextIncomplete() {
+        if (!this.data || !this.data.strings) return;
+        
+        const stringEntries = document.querySelectorAll('.string-entry');
+        const currentScrollTop = window.scrollY;
+        
+        // Find all incomplete entries that are visible (not filtered out)
+        const incompleteEntries = Array.from(stringEntries).filter(entry => {
+            if (entry.classList.contains('filtered-out')) return false;
+            
+            const stringKey = entry.dataset.key;
+            const stringData = this.data.strings[stringKey];
+            if (!stringData) return false;
+            
+            return this.isStringIncomplete(stringData);
+        });
+        
+        if (incompleteEntries.length === 0) {
+            this.showNotification('No incomplete strings found', 'info');
+            return;
+        }
+        
+        // Find the next incomplete entry after current scroll position
+        let nextEntry = null;
+        for (const entry of incompleteEntries) {
+            const entryTop = entry.offsetTop;
+            if (entryTop > currentScrollTop + 50) { // Add small offset to avoid getting stuck on current entry
+                nextEntry = entry;
+                break;
+            }
+        }
+        
+        // If no entry found after current position, wrap to first incomplete entry
+        if (!nextEntry) {
+            nextEntry = incompleteEntries[0];
+        }
+        
+        // Scroll to the entry
+        const targetTop = nextEntry.offsetTop - 100; // Offset for better visibility
+        window.scrollTo({ top: targetTop, behavior: 'smooth' });
+        
+        // Optionally highlight the entry briefly
+        nextEntry.style.backgroundColor = '#e6f2ff';
+        setTimeout(() => {
+            nextEntry.style.backgroundColor = '';
+        }, 1500);
+    }
+    
+    // Check if a string is incomplete (has missing or non-translated localizations)
+    isStringIncomplete(stringData) {
+        if (!stringData.localizations) return true;
+        
+        const sourceLanguage = this.data.sourceLanguage || 'en';
+        const allLanguages = new Set();
+        
+        // Collect all languages in the project
+        Object.values(this.data.strings).forEach(str => {
+            if (str.localizations) {
+                Object.keys(str.localizations).forEach(lang => allLanguages.add(lang));
+            }
+        });
+        
+        // Check if this string is incomplete in any language
+        for (const lang of allLanguages) {
+            if (lang !== sourceLanguage) {
+                if (!this.isTranslated(stringData, lang)) {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+    
+    // Update status bar string counts
+    updateStatusBarCounts() {
+        if (!this.data || !this.data.strings) {
+            this.statusTotalStrings.textContent = '0';
+            this.statusIncompleteStrings.textContent = '0';
+            return;
+        }
+        
+        const totalStrings = Object.keys(this.data.strings).length;
+        let incompleteCount = 0;
+        
+        Object.values(this.data.strings).forEach(stringData => {
+            if (this.isStringIncomplete(stringData)) {
+                incompleteCount++;
+            }
+        });
+        
+        this.statusTotalStrings.textContent = totalStrings.toString();
+        this.statusIncompleteStrings.textContent = incompleteCount.toString();
+        
+        // Disable Next button if no incomplete strings
+        this.statusNextBtn.disabled = incompleteCount === 0;
     }
     
     // Update specific string entry in UI without full re-render

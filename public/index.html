@@ -145,20 +145,6 @@
                 </div>
             </section>
 
-            <!-- AI Progress Section -->
-            <section class="ai-progress-section" id="aiProgressSection" style="display: none;">
-                <div class="ai-progress-header">
-                    <h3 id="aiProgressTitle">AI Processing</h3>
-                    <button id="aiProgressCancel" class="btn btn-sm btn-secondary" style="display: none;">Cancel</button>
-                </div>
-                <div class="ai-progress-content">
-                    <div class="ai-progress-bar">
-                        <div id="aiProgressBarFill" class="ai-progress-fill" style="width: 0%"></div>
-                    </div>
-                    <div id="aiProgressText" class="ai-progress-text">Initializing...</div>
-                    <div id="aiProgressDetails" class="ai-progress-details"></div>
-                </div>
-            </section>
 
             <!-- Editor Section -->
             <section class="editor-section" id="editorSection" style="display: none;">
@@ -247,6 +233,31 @@
                     <button type="submit" class="btn btn-primary">OK</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div id="statusBar" class="status-bar">
+        <div class="status-left">
+            <div id="statusAIOperation" class="status-ai-operation" style="display: none;">
+                <span id="statusAIText">AI Processing...</span>
+                <div class="status-ai-progress">
+                    <div id="statusAIProgressFill" class="status-ai-progress-fill" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="status-center">
+            <span id="statusStringCounts" class="status-counts">
+                <span id="statusTotalStrings">0</span> strings, 
+                <span id="statusIncompleteStrings">0</span> incomplete
+            </span>
+        </div>
+        
+        <div class="status-right">
+            <button id="statusTopBtn" class="status-btn" title="Go to top">↑ Top</button>
+            <button id="statusBottomBtn" class="status-btn" title="Go to bottom">↓ Bottom</button>
+            <button id="statusNextBtn" class="status-btn" title="Go to next incomplete">→ Next</button>
         </div>
     </div>
 
