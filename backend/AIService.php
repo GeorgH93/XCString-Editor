@@ -152,7 +152,7 @@ Response:";
                     'content' => $prompt
                 ]
             ],
-            'max_tokens' => 500,
+            'max_tokens' => $expectJson ? 4000 : 500, // Increase tokens for batch operations
             'temperature' => 0.3
         ];
         
@@ -166,7 +166,7 @@ Response:";
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_TIMEOUT, $expectJson ? 120 : 30); // Longer timeout for batch operations
         
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -207,7 +207,7 @@ Response:";
         
         $data = [
             'model' => $model,
-            'max_tokens' => 500,
+            'max_tokens' => $expectJson ? 4000 : 500, // Increase tokens for batch operations
             'temperature' => 0.3,
             'messages' => [
                 [
@@ -223,7 +223,7 @@ Response:";
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_TIMEOUT, $expectJson ? 120 : 30); // Longer timeout for batch operations
         
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -291,6 +291,138 @@ Response:";
         }
         
         return $context;
+    }
+    
+    public function batchTranslate($items, $sourceLanguage, $targetLanguage, $provider = null, $model = null) {
+        if (!$this->isEnabled()) {
+            throw new Exception('AI features are not enabled');
+        }
+        
+        if (empty($items)) {
+            return [];
+        }
+        
+        $provider = $provider ?? $this->config['ai']['default_provider'];
+        $model = $model ?? $this->config['ai']['default_model'];
+        
+        $providerConfig = $this->config['ai']['providers'][$provider] ?? null;
+        if (!$providerConfig || !$providerConfig['enabled']) {
+            throw new Exception("Provider $provider is not available");
+        }
+        
+        $prompt = $this->buildBatchTranslationPrompt($items, $sourceLanguage, $targetLanguage);
+        
+        $result = $this->makeAIRequest($provider, $model, $prompt, $providerConfig, true);
+        
+        // Parse and validate the JSON response
+        if (!isset($result['translations']) || !is_array($result['translations'])) {
+            throw new Exception('Invalid batch translation response format');
+        }
+        
+        return $result['translations'];
+    }
+    
+    public function batchProofread($items, $language, $provider = null, $model = null) {
+        if (!$this->isEnabled()) {
+            throw new Exception('AI features are not enabled');
+        }
+        
+        if (empty($items)) {
+            return [];
+        }
+        
+        $provider = $provider ?? $this->config['ai']['default_provider'];
+        $model = $model ?? $this->config['ai']['default_model'];
+        
+        $providerConfig = $this->config['ai']['providers'][$provider] ?? null;
+        if (!$providerConfig || !$providerConfig['enabled']) {
+            throw new Exception("Provider $provider is not available");
+        }
+        
+        $prompt = $this->buildBatchProofreadingPrompt($items, $language);
+        
+        $result = $this->makeAIRequest($provider, $model, $prompt, $providerConfig, true);
+        
+        // Parse and validate the JSON response
+        if (!isset($result['reviews']) || !is_array($result['reviews'])) {
+            throw new Exception('Invalid batch proofreading response format');
+        }
+        
+        return $result['reviews'];
+    }
+    
+    private function buildBatchTranslationPrompt($items, $sourceLanguage, $targetLanguage) {
+        $itemsJson = json_encode($items, JSON_PRETTY_PRINT);
+        
+        return "Translate the following strings from {$sourceLanguage} to {$targetLanguage}. This is for a mobile/desktop application localization.
+
+Input data structure:
+{$itemsJson}
+
+Instructions:
+- Translate each 'text' field from {$sourceLanguage} to {$targetLanguage}
+- Maintain the same tone and style appropriate for UI elements
+- Keep placeholders and formatting intact if any
+- Consider the context of mobile/desktop application UI
+- If it's a technical term or brand name, consider if it should remain untranslated
+- Use the 'key' field to understand the context and purpose of each string
+
+Respond with a JSON object in this exact format:
+{
+  \"translations\": [
+    {
+      \"key\": \"original_key_1\",
+      \"translation\": \"translated_text_1\"
+    },
+    {
+      \"key\": \"original_key_2\", 
+      \"translation\": \"translated_text_2\"
+    }
+  ]
+}
+
+Important: Respond only with valid JSON, no other text.";
+    }
+    
+    private function buildBatchProofreadingPrompt($items, $language) {
+        $itemsJson = json_encode($items, JSON_PRETTY_PRINT);
+        
+        return "Review the following localized texts for a mobile/desktop application. Evaluate the quality and provide feedback for each.
+
+Input data structure:
+{$itemsJson}
+
+Language: {$language}
+
+For each text, consider:
+- Grammar and spelling
+- Clarity and naturalness  
+- Appropriateness for UI context
+- Consistency with typical app terminology
+- Cultural appropriateness
+
+Respond with a JSON object in this exact format:
+{
+  \"reviews\": [
+    {
+      \"key\": \"original_key_1\",
+      \"status\": \"good\",
+      \"feedback\": \"explanation or empty string if good\"
+    },
+    {
+      \"key\": \"original_key_2\",
+      \"status\": \"wording\", 
+      \"feedback\": \"explanation of suggestions\"
+    }
+  ]
+}
+
+Status meanings:
+- \"good\": The text is well-written and appropriate
+- \"wording\": The text is understandable but could be improved with better wording
+- \"issue\": There are serious problems (grammar, unclear meaning, inappropriate tone, etc.)
+
+Important: Respond only with valid JSON, no other text.";
     }
 }
 ?>

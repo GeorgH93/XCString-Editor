@@ -407,6 +407,87 @@ header {
     }
 }
 
+/* AI Progress Section */
+.ai-progress-section {
+    background-color: #fff;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    margin-bottom: 30px;
+    border-left: 4px solid #007aff;
+}
+
+.ai-progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.ai-progress-header h3 {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #1d1d1f;
+    margin: 0;
+}
+
+.ai-progress-content {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.ai-progress-bar {
+    height: 8px;
+    background-color: #f2f2f7;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.ai-progress-fill {
+    height: 100%;
+    background-color: #007aff;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    position: relative;
+}
+
+.ai-progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.3) 50%,
+        rgba(255, 255, 255, 0) 100%
+    );
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.ai-progress-text {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #1d1d1f;
+    text-align: center;
+}
+
+.ai-progress-details {
+    font-size: 0.9rem;
+    color: #86868b;
+    text-align: center;
+    min-height: 20px;
+}
+
 /* Filter Section */
 .filter-section {
     border-bottom: 1px solid #e5e5e7;

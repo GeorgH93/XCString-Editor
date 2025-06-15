@@ -145,6 +145,21 @@
                 </div>
             </section>
 
+            <!-- AI Progress Section -->
+            <section class="ai-progress-section" id="aiProgressSection" style="display: none;">
+                <div class="ai-progress-header">
+                    <h3 id="aiProgressTitle">AI Processing</h3>
+                    <button id="aiProgressCancel" class="btn btn-sm btn-secondary" style="display: none;">Cancel</button>
+                </div>
+                <div class="ai-progress-content">
+                    <div class="ai-progress-bar">
+                        <div id="aiProgressBarFill" class="ai-progress-fill" style="width: 0%"></div>
+                    </div>
+                    <div id="aiProgressText" class="ai-progress-text">Initializing...</div>
+                    <div id="aiProgressDetails" class="ai-progress-details"></div>
+                </div>
+            </section>
+
             <!-- Editor Section -->
             <section class="editor-section" id="editorSection" style="display: none;">
                 <div class="editor-header">
@@ -171,6 +186,8 @@
                             <option value="">No Filter</option>
                             <option value="any">Any Language (missing translations)</option>
                             <option value="needs_review">Needs Review</option>
+                            <option value="new">New (not yet translated)</option>
+                            <option value="translated">Translated</option>
                         </select>
                         <span id="filterStatus" class="filter-status"></span>
                     </div>

@@ -292,6 +292,53 @@ try {
                 
                 echo json_encode(['success' => true, 'review' => $review]);
                 
+            } elseif (strpos($requestUri, '/ai/batch-translate') !== false) {
+                if (!$currentUser) {
+                    throw new Exception('Authentication required');
+                }
+                if (!$aiService->isEnabled()) {
+                    throw new Exception('AI features are not enabled');
+                }
+                if (!isset($input['items'], $input['source_language'], $input['target_language'])) {
+                    throw new Exception('Items, source_language, and target_language are required');
+                }
+                if (!is_array($input['items'])) {
+                    throw new Exception('Items must be an array');
+                }
+                
+                $translations = $aiService->batchTranslate(
+                    $input['items'],
+                    $input['source_language'],
+                    $input['target_language'],
+                    $input['provider'] ?? null,
+                    $input['model'] ?? null
+                );
+                
+                echo json_encode(['success' => true, 'translations' => $translations]);
+                
+            } elseif (strpos($requestUri, '/ai/batch-proofread') !== false) {
+                if (!$currentUser) {
+                    throw new Exception('Authentication required');
+                }
+                if (!$aiService->isEnabled()) {
+                    throw new Exception('AI features are not enabled');
+                }
+                if (!isset($input['items'], $input['language'])) {
+                    throw new Exception('Items and language are required');
+                }
+                if (!is_array($input['items'])) {
+                    throw new Exception('Items must be an array');
+                }
+                
+                $reviews = $aiService->batchProofread(
+                    $input['items'],
+                    $input['language'],
+                    $input['provider'] ?? null,
+                    $input['model'] ?? null
+                );
+                
+                echo json_encode(['success' => true, 'reviews' => $reviews]);
+                
             } else {
                 throw new Exception('Invalid endpoint');
             }

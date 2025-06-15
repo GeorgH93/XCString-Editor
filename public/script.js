@@ -548,7 +548,9 @@ class XCStringEditor {
         if (!fileName) return;
         
         try {
-            const content = JSON.stringify(this.data);
+            // Clean AI review data before saving
+            const cleanData = this.cleanDataForExport(this.data);
+            const content = JSON.stringify(cleanData);
             let response;
             
             if (this.currentFileId) {
@@ -596,12 +598,15 @@ class XCStringEditor {
         if (!this.currentUser || !this.data) return;
         
         try {
+            // Clean AI review data before saving
+            const cleanData = this.cleanDataForExport(this.data);
+            
             const response = await fetch('/backend/index.php/files/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     name: fileName,
-                    content: JSON.stringify(this.data),
+                    content: JSON.stringify(cleanData),
                     is_public: false
                 })
             });
@@ -1088,7 +1093,26 @@ class XCStringEditor {
 
     shouldHideEntry(stringKey, filterLanguage) {
         const stringData = this.data.strings[stringKey];
-        if (!stringData || !stringData.localizations) return false;
+        if (!stringData) return false;
+        
+        // Special handling for state-based filters when there are no meaningful localizations
+        // Check if localizations is missing, empty, or only contains empty objects
+        const hasNoMeaningfulLocalizations = !stringData.localizations || 
+            Object.keys(stringData.localizations).length === 0 ||
+            Object.values(stringData.localizations).every(loc => 
+                !loc || Object.keys(loc).length === 0 || 
+                (!loc.stringUnit && !loc.variations)
+            );
+            
+            
+        if (hasNoMeaningfulLocalizations) {
+            if (filterLanguage === 'new') {
+                return false; // Show entries without meaningful localizations (they are "new")
+            } else if (filterLanguage === 'needs_review' || filterLanguage === 'translated') {
+                return true; // Hide entries without meaningful localizations (they don't have these states)
+            }
+            return false; // For other filters, don't hide entries without meaningful localizations
+        }
         
         const sourceLanguage = this.data.sourceLanguage || 'en';
         
@@ -1113,6 +1137,12 @@ class XCStringEditor {
         } else if (filterLanguage === 'needs_review') {
             // Show entries that have any localization with 'needs_review' state
             return !this.hasNeedsReviewState(stringData);
+        } else if (filterLanguage === 'new') {
+            // Show entries that have any localization with 'new' state
+            return !this.hasNewState(stringData);
+        } else if (filterLanguage === 'translated') {
+            // Show entries that have any localization with 'translated' state
+            return !this.hasTranslatedState(stringData);
         } else {
             // Show entries that are incomplete for specific language
             return this.isTranslated(stringData, filterLanguage);
@@ -1132,6 +1162,62 @@ class XCStringEditor {
                 for (const [variationType, variations] of Object.entries(localization.variations)) {
                     for (const [variationKey, variation] of Object.entries(variations)) {
                         if (variation.stringUnit && variation.stringUnit.state === 'needs_review') {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        
+        return false;
+    }
+    
+    hasNewState(stringData) {
+        // Check if localizations is missing, empty, or only contains empty objects
+        const hasNoMeaningfulLocalizations = !stringData.localizations || 
+            Object.keys(stringData.localizations).length === 0 ||
+            Object.values(stringData.localizations).every(loc => 
+                !loc || Object.keys(loc).length === 0 || 
+                (!loc.stringUnit && !loc.variations)
+            );
+            
+        if (hasNoMeaningfulLocalizations) {
+            return true; // Consider strings with no meaningful localizations as "new"
+        }
+        
+        for (const [lang, localization] of Object.entries(stringData.localizations)) {
+            if (localization.stringUnit && localization.stringUnit.state === 'new') {
+                return true;
+            }
+            
+            // Check variations for new state
+            if (localization.variations) {
+                for (const [variationType, variations] of Object.entries(localization.variations)) {
+                    for (const [variationKey, variation] of Object.entries(variations)) {
+                        if (variation.stringUnit && variation.stringUnit.state === 'new') {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        
+        return false;
+    }
+    
+    hasTranslatedState(stringData) {
+        if (!stringData.localizations) return false;
+        
+        for (const [lang, localization] of Object.entries(stringData.localizations)) {
+            if (localization.stringUnit && localization.stringUnit.state === 'translated') {
+                return true;
+            }
+            
+            // Check variations for translated state
+            if (localization.variations) {
+                for (const [variationType, variations] of Object.entries(localization.variations)) {
+                    for (const [variationKey, variation] of Object.entries(variations)) {
+                        if (variation.stringUnit && variation.stringUnit.state === 'translated') {
                             return true;
                         }
                     }
@@ -1201,6 +1287,10 @@ class XCStringEditor {
             statusText = `Showing ${visibleCount} of ${totalCount} entries with incomplete translations`;
         } else if (filterLanguage === 'needs_review') {
             statusText = `Showing ${visibleCount} of ${totalCount} entries needing review`;
+        } else if (filterLanguage === 'new') {
+            statusText = `Showing ${visibleCount} of ${totalCount} entries with new state`;
+        } else if (filterLanguage === 'translated') {
+            statusText = `Showing ${visibleCount} of ${totalCount} entries with translated state`;
         } else {
             statusText = `Showing ${visibleCount} of ${totalCount} entries incomplete for ${filterLanguage}`;
         }
@@ -1876,13 +1966,14 @@ class XCStringEditor {
 
     async exportFile() {
         try {
-            // Ensure data integrity before export
+            // Ensure data integrity and clean AI review data before export
             this.data = this.fixParsedData(this.data);
+            const cleanData = this.cleanDataForExport(this.data);
             
             const response = await fetch('/backend/index.php/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ data: this.data })
+                body: JSON.stringify({ data: cleanData })
             });
 
             const result = await response.json();
@@ -1990,52 +2081,121 @@ class XCStringEditor {
             return;
         }
         
-        let translatedCount = 0;
-        this.showNotification('Starting AI translation...', 'info');
+        this.aiOperationCounts = { translated: 0, total: 0 };
+        let totalItemsToTranslate = 0;
+        
+        // Count total items for progress tracking
+        for (const targetLanguage of allLanguages) {
+            let languageCount = 0;
+            for (const [stringKey, stringData] of Object.entries(this.data.strings)) {
+                const sourceText = stringData.localizations?.[sourceLanguage]?.stringUnit?.value;
+                if (sourceText && !this.isTranslated(stringData, targetLanguage)) {
+                    totalItemsToTranslate++;
+                    languageCount++;
+                }
+            }
+            console.log(`Language ${targetLanguage}: ${languageCount} missing translations`);
+        }
+        
+        console.log(`Total items to translate: ${totalItemsToTranslate}`);
+        console.log(`Available languages: ${Array.from(allLanguages).join(', ')}`);
+        
+        if (totalItemsToTranslate === 0) {
+            this.showNotification('No missing translations found', 'info');
+            return;
+        }
+        
+        this.showAIProgress('AI Batch Translation', totalItemsToTranslate);
+        this.showNotification('Starting AI batch translation...', 'info');
         
         for (const targetLanguage of allLanguages) {
+            // Collect items that need translation for this language
+            const itemsToTranslate = [];
+            
             for (const [stringKey, stringData] of Object.entries(this.data.strings)) {
                 const sourceText = stringData.localizations?.[sourceLanguage]?.stringUnit?.value;
                 const targetLocalization = stringData.localizations?.[targetLanguage];
                 
-                // Only translate if source exists and target is missing or empty
-                if (sourceText && (!targetLocalization || !targetLocalization.stringUnit?.value)) {
-                    try {
-                        const translation = await this.translateText(
-                            sourceText, 
-                            sourceLanguage, 
-                            targetLanguage, 
-                            stringKey
-                        );
-                        
-                        // Ensure localizations structure exists
-                        if (!stringData.localizations) {
-                            stringData.localizations = {};
-                        }
-                        if (!stringData.localizations[targetLanguage]) {
-                            stringData.localizations[targetLanguage] = {
-                                stringUnit: { state: 'new', value: '' }
-                            };
-                        }
-                        
-                        // Update with translation and set state to needs_review
-                        stringData.localizations[targetLanguage].stringUnit.value = translation;
-                        stringData.localizations[targetLanguage].stringUnit.state = 'needs_review';
-                        
-                        translatedCount++;
-                        this.markModified();
-                        
-                    } catch (error) {
-                        console.error(`Translation failed for ${stringKey} (${targetLanguage}):`, error);
-                    }
+                // Only translate if source exists and target is not translated (using same logic as filter)
+                if (sourceText && !this.isTranslated(stringData, targetLanguage)) {
+                    itemsToTranslate.push({
+                        key: stringKey,
+                        text: sourceText
+                    });
                 }
             }
+            
+            if (itemsToTranslate.length === 0) continue;
+            
+            // Process in batches of 15 to avoid overwhelming the AI and hitting token limits
+            const batchSize = 15;
+            const batches = [];
+            for (let i = 0; i < itemsToTranslate.length; i += batchSize) {
+                batches.push(itemsToTranslate.slice(i, i + batchSize));
+            }
+            
+            this.showNotification(`Translating ${itemsToTranslate.length} strings to ${targetLanguage} in ${batches.length} parallel batches...`, 'info');
+            
+            // Process all batches in parallel with concurrency limit of 3
+            const maxConcurrency = 3;
+            const results = await this.processBatchesInParallel(
+                batches,
+                async (batch, batchIndex) => {
+                    try {
+                        const translations = await this.batchTranslateText(
+                            batch,
+                            sourceLanguage,
+                            targetLanguage
+                        );
+                        
+                        // Apply translations immediately as each batch completes
+                        for (const translation of translations) {
+                            const stringData = this.data.strings[translation.key];
+                            if (stringData) {
+                                // Ensure localizations structure exists
+                                if (!stringData.localizations) {
+                                    stringData.localizations = {};
+                                }
+                                if (!stringData.localizations[targetLanguage]) {
+                                    stringData.localizations[targetLanguage] = {
+                                        stringUnit: { state: 'new', value: '' }
+                                    };
+                                }
+                                
+                                // Update with translation and set state to needs_review
+                                stringData.localizations[targetLanguage].stringUnit.value = translation.translation;
+                                stringData.localizations[targetLanguage].stringUnit.state = 'needs_review';
+                                
+                                this.aiOperationCounts.translated++;
+                                
+                                // Update progress immediately
+                                this.updateAIProgress(this.aiOperationCounts.translated, totalItemsToTranslate, '', `Translated "${translation.key}" to ${targetLanguage}`);
+                                
+                                // Update UI immediately
+                                console.log(`Updating UI for translated key: ${translation.key}`);
+                                this.updateStringEntryUI(translation.key);
+                            }
+                        }
+                        
+                        return { batchIndex, translations, batch };
+                    } catch (error) {
+                        console.error(`Batch translation failed for ${targetLanguage} batch ${batchIndex + 1}:`, error);
+                        throw error;
+                    }
+                },
+                maxConcurrency,
+                `${targetLanguage} translation`
+            );
+            
+            this.markModified();
         }
         
-        if (translatedCount > 0) {
-            this.renderEditor();
+        // Hide AI progress and show completion
+        this.hideAIProgress();
+        
+        if (this.aiOperationCounts.translated > 0) {
             this.updateProgressIndicators();
-            this.showNotification(`Translated ${translatedCount} strings using AI`, 'success');
+            this.showNotification(`Translated ${this.aiOperationCounts.translated} strings using AI`, 'success');
         } else {
             this.showNotification('No missing translations found', 'info');
         }
@@ -2052,35 +2212,104 @@ class XCStringEditor {
             return;
         }
         
-        let proofreadCount = 0;
-        this.showNotification('Starting AI proofreading...', 'info');
+        this.aiOperationCounts = { proofread: 0, total: 0 };
+        let totalItemsToProofread = 0;
+        
+        // Group items by language for batch processing and count total
+        const itemsByLanguage = {};
         
         for (const [stringKey, stringData] of Object.entries(this.data.strings)) {
             if (stringData.localizations) {
                 for (const [language, localization] of Object.entries(stringData.localizations)) {
                     const text = localization.stringUnit?.value;
                     if (text) {
-                        try {
-                            const review = await this.proofreadText(text, language, stringKey);
-                            
-                            // Store proofreading result
-                            if (!localization.stringUnit.ai_review) {
-                                localization.stringUnit.ai_review = {};
-                            }
-                            localization.stringUnit.ai_review = review;
-                            proofreadCount++;
-                            
-                        } catch (error) {
-                            console.error(`Proofreading failed for ${stringKey} (${language}):`, error);
+                        if (!itemsByLanguage[language]) {
+                            itemsByLanguage[language] = [];
                         }
+                        itemsByLanguage[language].push({
+                            key: stringKey,
+                            text: text,
+                            localization: localization
+                        });
+                        totalItemsToProofread++;
                     }
                 }
             }
         }
         
-        if (proofreadCount > 0) {
-            this.renderEditor();
-            this.showNotification(`Proofread ${proofreadCount} localizations using AI`, 'success');
+        if (totalItemsToProofread === 0) {
+            this.showNotification('No localizations found to proofread', 'info');
+            return;
+        }
+        
+        this.showAIProgress('AI Batch Proofreading', totalItemsToProofread);
+        this.showNotification('Starting AI batch proofreading...', 'info');
+        
+        // Process each language in batches
+        for (const [language, items] of Object.entries(itemsByLanguage)) {
+            if (items.length === 0) continue;
+            
+            // Process in batches of 15
+            const batchSize = 15;
+            const batches = [];
+            for (let i = 0; i < items.length; i += batchSize) {
+                batches.push(items.slice(i, i + batchSize));
+            }
+            
+            this.showNotification(`Proofreading ${items.length} strings in ${language} in ${batches.length} parallel batches...`, 'info');
+            
+            // Process all batches in parallel with concurrency limit of 3
+            const maxConcurrency = 3;
+            const results = await this.processBatchesInParallel(
+                batches,
+                async (batch, batchIndex) => {
+                    try {
+                        const batchItems = batch.map(item => ({
+                            key: item.key,
+                            text: item.text
+                        }));
+                        
+                        const reviews = await this.batchProofreadText(batchItems, language);
+                        
+                        // Apply reviews immediately as each batch completes
+                        for (const review of reviews) {
+                            const item = batch.find(item => item.key === review.key);
+                            if (item) {
+                                // Store proofreading result
+                                if (!item.localization.stringUnit.ai_review) {
+                                    item.localization.stringUnit.ai_review = {};
+                                }
+                                item.localization.stringUnit.ai_review = {
+                                    status: review.status,
+                                    feedback: review.feedback
+                                };
+                                this.aiOperationCounts.proofread++;
+                                
+                                // Update progress immediately
+                                this.updateAIProgress(this.aiOperationCounts.proofread, totalItemsToProofread, '', `Proofread "${review.key}" in ${language}: ${review.status}`);
+                                
+                                // Update UI immediately
+                                console.log(`Updating UI for proofread key: ${review.key}, status: ${review.status}`);
+                                this.updateStringEntryUI(review.key);
+                            }
+                        }
+                        
+                        return { batchIndex, reviews, batch };
+                    } catch (error) {
+                        console.error(`Batch proofreading failed for ${language} batch ${batchIndex + 1}:`, error);
+                        throw error;
+                    }
+                },
+                maxConcurrency,
+                `${language} proofreading`
+            );
+        }
+        
+        // Hide AI progress and show completion
+        this.hideAIProgress();
+        
+        if (this.aiOperationCounts.proofread > 0) {
+            this.showNotification(`Proofread ${this.aiOperationCounts.proofread} localizations using AI`, 'success');
         } else {
             this.showNotification('No localizations found to proofread', 'info');
         }
@@ -2129,6 +2358,120 @@ class XCStringEditor {
         }
         
         return result.review;
+    }
+    
+    async retryWithBackoff(asyncFn, maxRetries = 3, baseDelay = 1000) {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                return await asyncFn();
+            } catch (error) {
+                if (attempt === maxRetries) {
+                    throw error; // Final attempt failed, re-throw the error
+                }
+                
+                // Exponential backoff: 1s, 2s, 4s delays
+                const delay = baseDelay * Math.pow(2, attempt - 1);
+                console.warn(`Attempt ${attempt} failed, retrying in ${delay}ms:`, error.message);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
+        }
+    }
+    
+    async processBatchesInParallel(batches, processBatchFn, maxConcurrency = 3, operationName = 'operation') {
+        const totalBatches = batches.length;
+        let completed = 0;
+        let lastProgress = 0;
+        
+        // Create semaphore to limit concurrency
+        const semaphore = new Array(maxConcurrency).fill(null).map(() => Promise.resolve());
+        let semaphoreIndex = 0;
+        
+        // Process all batches with concurrency control
+        const batchPromises = batches.map(async (batch, batchIndex) => {
+            // Wait for available slot
+            const currentSemaphore = semaphoreIndex % maxConcurrency;
+            await semaphore[currentSemaphore];
+            
+            // Create new promise for this slot
+            const batchPromise = (async () => {
+                try {
+                    const data = await processBatchFn(batch, batchIndex);
+                    completed++;
+                    
+                    // Progress is now handled by the main progress bar, no need for notifications
+                    
+                    return { success: true, batchIndex, data };
+                } catch (error) {
+                    completed++;
+                    console.error(`Batch ${batchIndex + 1} failed:`, error);
+                    return { success: false, batchIndex, error };
+                }
+            })();
+            
+            // Update semaphore slot
+            semaphore[currentSemaphore] = batchPromise.catch(() => {}); // Ignore errors for semaphore
+            semaphoreIndex++;
+            
+            return batchPromise;
+        });
+        
+        // Wait for all batches to complete
+        const results = await Promise.all(batchPromises);
+        
+        // Sort results by batch index to maintain order
+        results.sort((a, b) => a.batchIndex - b.batchIndex);
+        
+        const successCount = results.filter(r => r.success).length;
+        const failCount = results.filter(r => !r.success).length;
+        
+        // Batch completion messages are now handled by the main functions
+        
+        return results;
+    }
+    
+    async batchTranslateText(items, sourceLanguage, targetLanguage) {
+        return await this.retryWithBackoff(async () => {
+            const response = await fetch('/backend/index.php/ai/batch-translate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    items: items,
+                    source_language: sourceLanguage,
+                    target_language: targetLanguage,
+                    provider: this.selectedAIProvider,
+                    model: this.selectedAIModel
+                })
+            });
+            
+            const result = await response.json();
+            if (!result.success) {
+                throw new Error(result.error || 'Batch translation failed');
+            }
+            
+            return result.translations;
+        });
+    }
+    
+    async batchProofreadText(items, language) {
+        return await this.retryWithBackoff(async () => {
+            const response = await fetch('/backend/index.php/ai/batch-proofread', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    items: items,
+                    language: language,
+                    provider: this.selectedAIProvider,
+                    model: this.selectedAIModel
+                })
+            });
+            
+            const result = await response.json();
+            if (!result.success) {
+                throw new Error(result.error || 'Batch proofreading failed');
+            }
+            
+            return result.reviews;
+        });
     }
     
     createAIControls(stringKey, lang, localization) {
@@ -2399,6 +2742,114 @@ class XCStringEditor {
         });
         
         return data;
+    }
+    
+    cleanDataForExport(data) {
+        if (!data || !data.strings) return data;
+        
+        // Create a deep copy to avoid modifying the original data
+        const cleanData = JSON.parse(JSON.stringify(data));
+        
+        // Remove AI review data from all localizations
+        for (const [key, stringData] of Object.entries(cleanData.strings)) {
+            if (stringData.localizations) {
+                for (const [lang, localization] of Object.entries(stringData.localizations)) {
+                    if (localization.stringUnit && localization.stringUnit.ai_review) {
+                        delete localization.stringUnit.ai_review;
+                    }
+                    
+                    // Also clean variations if they exist
+                    if (localization.variations) {
+                        for (const [variationType, variations] of Object.entries(localization.variations)) {
+                            for (const [variationKey, variation] of Object.entries(variations)) {
+                                if (variation.stringUnit && variation.stringUnit.ai_review) {
+                                    delete variation.stringUnit.ai_review;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        return cleanData;
+    }
+
+    // AI Progress Management
+    showAIProgress(title, totalItems = 0) {
+        const section = document.getElementById('aiProgressSection');
+        const titleEl = document.getElementById('aiProgressTitle');
+        const barFill = document.getElementById('aiProgressBarFill');
+        const text = document.getElementById('aiProgressText');
+        const details = document.getElementById('aiProgressDetails');
+        
+        titleEl.textContent = title;
+        barFill.style.width = '0%';
+        text.textContent = totalItems > 0 ? `0 / ${totalItems} items processed` : 'Initializing...';
+        details.textContent = '';
+        
+        section.style.display = 'block';
+        this.aiProgressState = {
+            total: totalItems,
+            completed: 0,
+            isActive: true
+        };
+    }
+    
+    updateAIProgress(completed, total, message = '', details = '') {
+        if (!this.aiProgressState?.isActive) return;
+        
+        const barFill = document.getElementById('aiProgressBarFill');
+        const text = document.getElementById('aiProgressText');
+        const detailsEl = document.getElementById('aiProgressDetails');
+        
+        const percentage = total > 0 ? (completed / total) * 100 : 0;
+        barFill.style.width = `${percentage}%`;
+        
+        if (message) {
+            text.textContent = message;
+        } else {
+            text.textContent = `${completed} / ${total} items processed`;
+        }
+        
+        if (details) {
+            detailsEl.textContent = details;
+        }
+        
+        this.aiProgressState.completed = completed;
+    }
+    
+    hideAIProgress() {
+        const section = document.getElementById('aiProgressSection');
+        section.style.display = 'none';
+        this.aiProgressState = { isActive: false };
+    }
+    
+    // Update specific string entry in UI without full re-render
+    updateStringEntryUI(stringKey) {
+        console.log(`Attempting to update UI for key: ${stringKey}`);
+        const stringEntry = document.querySelector(`[data-key="${stringKey}"]`);
+        if (!stringEntry) {
+            console.warn(`String entry not found for key: ${stringKey}`);
+            return;
+        }
+        
+        const stringData = this.data.strings[stringKey];
+        if (!stringData) {
+            console.warn(`String data not found for key: ${stringKey}`);
+            return;
+        }
+        
+        console.log(`String data for ${stringKey}:`, stringData.localizations);
+        
+        // Find the localizations container and re-render it
+        const localizationsContainer = stringEntry.querySelector('.localizations');
+        if (localizationsContainer) {
+            console.log(`Re-rendering localizations for ${stringKey}`);
+            this.renderLocalizations(localizationsContainer, stringKey, stringData.localizations);
+        } else {
+            console.warn(`Localizations container not found for key: ${stringKey}`);
+        }
     }
 
     // Debug function for testing data integrity
