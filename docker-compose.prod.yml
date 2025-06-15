@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  xcstring-editor:
+    image: ghcr.io/your-username/xcstringtool:latest
+    ports:
+      - "8080:80"
+    volumes:
+      - xcstring_data:/var/www/html/data
+    environment:
+      # Database Configuration
+      DB_DRIVER: sqlite
+      DB_SQLITE_PATH: /var/www/html/data/database.sqlite
+      
+      # Application Settings
+      APP_NAME: "XCString Editor"
+      APP_DEBUG: "false"
+      
+      # User Registration
+      REGISTRATION_ENABLED: "true"
+      # REGISTRATION_ALLOWED_DOMAINS: "example.com,yourcompany.com"  # Uncomment to restrict domains
+      
+      # Session Configuration
+      SESSION_LIFETIME: "604800"  # 7 days
+      SESSION_COOKIE_SECURE: "true"  # Set to false for HTTP
+      
+      # File Storage
+      FILES_MAX_FILE_SIZE: "10485760"  # 10MB
+      FILES_MAX_FILES_PER_USER: "100"
+      
+      # OAuth2 Configuration (uncomment and configure as needed)
+      # OAUTH2_ENABLED: "true"
+      # OAUTH2_BASE_URL: "https://your-domain.com"
+      # OAUTH2_GOOGLE_ENABLED: "true"
+      # OAUTH2_GOOGLE_CLIENT_ID: "your-google-client-id"
+      # OAUTH2_GOOGLE_CLIENT_SECRET: "your-google-client-secret"
+      
+      # AI Configuration (uncomment and configure as needed)
+      # AI_ENABLED: "true"
+      # AI_DEFAULT_PROVIDER: "openai"
+      # AI_DEFAULT_MODEL: "gpt-4o-mini"
+      # OPENAI_ENABLED: "true"
+      # OPENAI_API_KEY: "your-openai-api-key"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add a reverse proxy for HTTPS
+  # nginx:
+  #   image: nginx:alpine
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./ssl:/etc/nginx/ssl:ro
+  #   depends_on:
+  #     - xcstring-editor
+  #   restart: unless-stopped
+
+  # Optional: Add MySQL database
+  # mysql:
+  #   image: mysql:8.0
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: rootpassword
+  #     MYSQL_DATABASE: xcstring_editor
+  #     MYSQL_USER: xcstring_user
+  #     MYSQL_PASSWORD: xcstring_password
+  #   volumes:
+  #     - mysql_data:/var/lib/mysql
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3306:3306"
+
+  # Optional: Add PostgreSQL database
+  # postgres:
+  #   image: postgres:15
+  #   environment:
+  #     POSTGRES_DB: xcstring_editor
+  #     POSTGRES_USER: xcstring_user
+  #     POSTGRES_PASSWORD: xcstring_password
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   restart: unless-stopped
+  #   ports:
+  #     - "5432:5432"
+
+volumes:
+  xcstring_data:
+    driver: local
+  # mysql_data:
+  #   driver: local
+  # postgres_data:
+  #   driver: local
