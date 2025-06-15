@@ -9,7 +9,7 @@ WORKDIR /var/www/html
 # Copy application files
 COPY public/ /var/www/html/
 COPY backend/ /var/www/html/backend/
-COPY config.php /var/www/html/config.php.template
+COPY config.php /var/www/html/
 COPY init-db.php /var/www/html/
 
 # Configure Apache to serve from current directory
@@ -23,12 +23,6 @@ RUN a2enconf xcstring-editor
 
 # Create startup script
 RUN echo '#!/bin/bash\n\
-# Create config.php if it does not exist\n\
-if [ ! -f /var/www/html/config.php ]; then\n\
-    echo "Creating minimal config.php for container startup..."\n\
-    cp /var/www/html/config.php.template /var/www/html/config.php\n\
-fi\n\
-\n\
 # Create data directory for SQLite\n\
 mkdir -p /var/www/html/data\n\
 chown -R www-data:www-data /var/www/html/data\n\
