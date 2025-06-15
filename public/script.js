@@ -1063,10 +1063,25 @@ class XCStringEditor {
     updateFilterOptions(progressData) {
         const currentValue = this.filterLanguage.value;
         
-        // Clear existing options except the first two
-        while (this.filterLanguage.children.length > 2) {
-            this.filterLanguage.removeChild(this.filterLanguage.lastChild);
-        }
+        // Keep track of static options that should be preserved
+        const staticOptions = [
+            { value: "", text: "No Filter" },
+            { value: "any", text: "Any Language (missing translations)" },
+            { value: "needs_review", text: "Needs Review" },
+            { value: "new", text: "New (not yet translated)" },
+            { value: "translated", text: "Translated" }
+        ];
+        
+        // Clear all options first
+        this.filterLanguage.innerHTML = '';
+        
+        // Re-add static options
+        staticOptions.forEach(option => {
+            const optionEl = document.createElement('option');
+            optionEl.value = option.value;
+            optionEl.textContent = option.text;
+            this.filterLanguage.appendChild(optionEl);
+        });
         
         // Add language-specific options (exclude source language)
         const sourceLanguage = this.data.sourceLanguage || 'en';
@@ -1381,6 +1396,7 @@ class XCStringEditor {
         langInput.value = lang;
         langInput.placeholder = 'Language';
         langInput.className = 'localization-lang-input';
+        langInput.maxLength = 3;
         
         const valueInput = document.createElement('input');
         valueInput.type = 'text';
@@ -2108,38 +2124,29 @@ class XCStringEditor {
         });
         
         if (allLanguages.size === 0) {
-            // If no target languages exist but we have strings needing source content, that's still an issue
-            if (stringsNeedingSource.length > 0) {
-                // Don't return early, let the source content warning show
-            } else {
-                this.showNotification('No target languages found to translate to. Add localizations for other languages first.', 'warning');
-                return;
-            }
+            this.showNotification('No target languages found to translate to. Add localizations for other languages first.', 'warning');
+            return;
         }
         
         this.aiOperationCounts = { translated: 0, total: 0 };
         let totalItemsToTranslate = 0;
         
-        // Also check for strings that need source language content
-        const stringsNeedingSource = [];
-        for (const [stringKey, stringData] of Object.entries(this.data.strings)) {
-            const sourceText = stringData.localizations?.[sourceLanguage]?.stringUnit?.value;
-            if (!sourceText || sourceText.trim() === '') {
-                stringsNeedingSource.push(stringKey);
+        // Helper function to get source text (use key if no explicit source localization)
+        const getSourceText = (stringKey, stringData) => {
+            const explicitSourceText = stringData.localizations?.[sourceLanguage]?.stringUnit?.value;
+            if (explicitSourceText && explicitSourceText.trim() !== '') {
+                return explicitSourceText;
             }
-        }
-        
-        if (stringsNeedingSource.length > 0) {
-            this.showNotification(`Found ${stringsNeedingSource.length} strings without source language (${sourceLanguage}) content. Please add source content first.`, 'warning');
-            console.log('Strings needing source content:', stringsNeedingSource);
-        }
+            // Use the key as source text if no explicit source localization exists
+            return stringKey;
+        };
         
         // Count total items for progress tracking
         for (const targetLanguage of allLanguages) {
             let languageCount = 0;
             for (const [stringKey, stringData] of Object.entries(this.data.strings)) {
-                const sourceText = stringData.localizations?.[sourceLanguage]?.stringUnit?.value;
-                if (sourceText && sourceText.trim() !== '' && !this.isTranslated(stringData, targetLanguage)) {
+                const sourceText = getSourceText(stringKey, stringData);
+                if (sourceText && !this.isTranslated(stringData, targetLanguage)) {
                     totalItemsToTranslate++;
                     languageCount++;
                 }
@@ -2163,7 +2170,7 @@ class XCStringEditor {
             const itemsToTranslate = [];
             
             for (const [stringKey, stringData] of Object.entries(this.data.strings)) {
-                const sourceText = stringData.localizations?.[sourceLanguage]?.stringUnit?.value;
+                const sourceText = getSourceText(stringKey, stringData);
                 const targetLocalization = stringData.localizations?.[targetLanguage];
                 
                 // Only translate if source exists and target is not translated (using same logic as filter)

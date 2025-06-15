@@ -1000,7 +1000,7 @@ header {
 
 .variation-entry {
     display: grid;
-    grid-template-columns: 1fr 2fr 100px 40px;
+    grid-template-columns: 50px 1fr 100px 40px;
     gap: 10px;
     align-items: center;
     margin-bottom: 8px;
@@ -1035,7 +1035,7 @@ header {
 
 .simple-localization {
     display: grid;
-    grid-template-columns: 1fr 2fr 100px 40px;
+    grid-template-columns: 50px 1fr 100px 40px;
     gap: 10px;
     align-items: center;
     margin-bottom: 8px;
@@ -1045,7 +1045,16 @@ header {
     border: 1px solid #e5e5e7;
 }
 
-.localization-lang-input,
+.localization-lang-input {
+    padding: 6px 8px;
+    border: 1px solid #d2d2d7;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    width: 100%;
+    max-width: 50px;
+    text-align: center;
+}
+
 .localization-value-input {
     padding: 6px 8px;
     border: 1px solid #d2d2d7;
