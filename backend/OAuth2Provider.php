@@ -360,8 +360,77 @@ class GitLabOAuth2Provider extends OAuth2Provider {
     }
 }
 
+class CustomOAuth2Provider extends OAuth2Provider {
+    
+    public function getAuthorizationUrl($state = null) {
+        if (!$state) {
+            $state = $this->generateState();
+        }
+        
+        $params = [
+            'client_id' => $this->config['client_id'],
+            'redirect_uri' => $this->config['redirect_uri'],
+            'scope' => $this->config['scope'],
+            'response_type' => 'code',
+            'state' => $state,
+        ];
+        
+        // Add any additional parameters
+        if (!empty($this->config['additional_params'])) {
+            $params = array_merge($params, $this->config['additional_params']);
+        }
+        
+        return $this->config['authorize_url'] . '?' . http_build_query($params);
+    }
+    
+    public function getAccessToken($authorizationCode) {
+        $data = [
+            'client_id' => $this->config['client_id'],
+            'client_secret' => $this->config['client_secret'],
+            'code' => $authorizationCode,
+            'grant_type' => 'authorization_code',
+            'redirect_uri' => $this->config['redirect_uri'],
+        ];
+        
+        $response = $this->makeHttpRequest(
+            $this->config['token_url'],
+            $data
+        );
+        
+        $tokenData = $this->parseJsonResponse($response);
+        
+        if (!isset($tokenData['access_token'])) {
+            throw new Exception('Access token not found in response');
+        }
+        
+        return $tokenData['access_token'];
+    }
+    
+    public function getUserInfo($accessToken) {
+        $response = $this->makeHttpRequest(
+            $this->config['user_info_url'],
+            null,
+            ["Authorization: Bearer $accessToken"]
+        );
+        
+        $userData = $this->parseJsonResponse($response);
+        
+        return [
+            'provider' => $this->providerName,
+            'provider_id' => $userData[$this->config['user_id_field']],
+            'email' => $userData[$this->config['user_email_field']],
+            'name' => $userData[$this->config['user_name_field']],
+            'avatar' => $userData[$this->config['user_avatar_field']] ?? null,
+        ];
+    }
+    
+    public function getProviderName() {
+        return $this->config['display_name'] ?? ucfirst($this->providerName);
+    }
+}
+
 class OAuth2ProviderFactory {
-    public static function create($providerName, $config) {
+    public static function create($providerName, $config, $mainConfig = null) {
         switch ($providerName) {
             case 'google':
                 return new GoogleOAuth2Provider($config, $providerName);
@@ -372,8 +441,18 @@ class OAuth2ProviderFactory {
             case 'gitlab':
                 return new GitLabOAuth2Provider($config, $providerName);
             default:
+                // Check if it's a custom provider
+                if ($mainConfig && self::isCustomProvider($providerName, $mainConfig)) {
+                    return new CustomOAuth2Provider($config, $providerName);
+                }
                 throw new Exception("Unsupported OAuth2 provider: $providerName");
         }
+    }
+    
+    private static function isCustomProvider($providerName, $mainConfig) {
+        // Check if the provider is in custom_providers or env_custom_providers
+        return isset($mainConfig['oauth2']['custom_providers'][$providerName]) || 
+               isset($mainConfig['oauth2']['env_custom_providers'][$providerName]);
     }
     
     public static function getAvailableProviders($config) {
@@ -383,14 +462,46 @@ class OAuth2ProviderFactory {
             return $providers;
         }
         
+        // Built-in providers
         foreach ($config['oauth2']['providers'] as $name => $providerConfig) {
             if ($providerConfig['enabled'] && !empty($providerConfig['client_id'])) {
-                $provider = self::create($name, $providerConfig);
+                $provider = self::create($name, $providerConfig, $config);
                 $providers[$name] = [
                     'name' => $name,
                     'display_name' => $provider->getProviderName(),
                     'config' => $providerConfig,
+                    'icon_svg' => null, // Built-in providers use hardcoded icons
                 ];
+            }
+        }
+        
+        // Custom providers (manually configured)
+        if (!empty($config['oauth2']['custom_providers'])) {
+            foreach ($config['oauth2']['custom_providers'] as $name => $providerConfig) {
+                if ($providerConfig['enabled'] && !empty($providerConfig['client_id'])) {
+                    $provider = self::create($name, $providerConfig, $config);
+                    $providers[$name] = [
+                        'name' => $name,
+                        'display_name' => $provider->getProviderName(),
+                        'config' => $providerConfig,
+                        'icon_svg' => $providerConfig['icon_svg'] ?? null,
+                    ];
+                }
+            }
+        }
+        
+        // Environment-based custom providers
+        if (!empty($config['oauth2']['env_custom_providers'])) {
+            foreach ($config['oauth2']['env_custom_providers'] as $name => $providerConfig) {
+                if ($providerConfig['enabled'] && !empty($providerConfig['client_id'])) {
+                    $provider = self::create($name, $providerConfig, $config);
+                    $providers[$name] = [
+                        'name' => $name,
+                        'display_name' => $provider->getProviderName(),
+                        'config' => $providerConfig,
+                        'icon_svg' => $providerConfig['icon_svg'] ?? null,
+                    ];
+                }
             }
         }
         

@@ -249,7 +249,7 @@ class XCStringEditor {
             const providerIcon = this.getProviderIcon(provider);
             
             return `
-                <a href="/backend/index.php/auth/oauth/${provider}/redirect" class="oauth2-btn ${provider}">
+                <a href="/backend/index.php/auth/oauth/${provider.name}/redirect" class="oauth2-btn ${provider.name}">
                     ${providerIcon}
                     Continue with ${providerName}
                 </a>
@@ -264,16 +264,31 @@ class XCStringEditor {
     }
     
     getProviderDisplayName(provider) {
-        const names = {
-            'google': 'Google',
-            'github': 'GitHub',
-            'microsoft': 'Microsoft',
-            'gitlab': 'GitLab'
-        };
-        return names[provider] || provider;
+        // Handle both old format (string) and new format (object)
+        if (typeof provider === 'string') {
+            const names = {
+                'google': 'Google',
+                'github': 'GitHub',
+                'microsoft': 'Microsoft',
+                'gitlab': 'GitLab'
+            };
+            return names[provider] || provider;
+        }
+        
+        // New format with display_name property
+        return provider.display_name || provider.name || 'Unknown Provider';
     }
     
     getProviderIcon(provider) {
+        // Handle both old format (string) and new format (object)
+        if (typeof provider === 'object' && provider.icon_svg) {
+            // Custom provider with custom icon
+            return provider.icon_svg;
+        }
+        
+        // Get provider name for built-in icons
+        const providerName = typeof provider === 'string' ? provider : provider.name;
+        
         const icons = {
             'google': `<svg viewBox="0 0 24 24" width="20" height="20">
                 <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -291,7 +306,8 @@ class XCStringEditor {
                 <path fill="currentColor" d="M23.955 13.587l-1.342-4.135-2.664-8.189c-.135-.423-.73-.423-.867 0L16.418 9.45H7.582L4.918 1.263c-.135-.423-.73-.423-.867 0L1.387 9.452.045 13.587c-.121.375.014.789.331 1.023L12 23.054l11.624-8.443c.318-.235.452-.648.331-1.024"/>
             </svg>`
         };
-        return icons[provider] || '';
+        
+        return icons[providerName] || '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>';
     }
 
     showAuthModal(mode = 'login') {

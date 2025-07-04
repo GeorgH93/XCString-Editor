@@ -66,6 +66,69 @@ return [
                 'instance_url' => $_ENV['OAUTH2_GITLAB_INSTANCE_URL'] ?? 'https://gitlab.com', // For self-hosted GitLab instances
             ],
         ],
+        // Custom OAuth2 providers - add unlimited custom providers here
+        'custom_providers' => [
+            // Example custom provider configuration
+            // 'keycloak' => [
+            //     'enabled' => filter_var($_ENV['OAUTH2_KEYCLOAK_ENABLED'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
+            //     'display_name' => $_ENV['OAUTH2_KEYCLOAK_DISPLAY_NAME'] ?? 'Keycloak',
+            //     'client_id' => $_ENV['OAUTH2_KEYCLOAK_CLIENT_ID'] ?? '',
+            //     'client_secret' => $_ENV['OAUTH2_KEYCLOAK_CLIENT_SECRET'] ?? '',
+            //     'redirect_uri' => $_ENV['OAUTH2_KEYCLOAK_REDIRECT_URI'] ?? ($_ENV['OAUTH2_BASE_URL'] ?? 'http://localhost:8080') . '/backend/index.php/auth/oauth/keycloak/callback',
+            //     'authorize_url' => $_ENV['OAUTH2_KEYCLOAK_AUTHORIZE_URL'] ?? 'https://keycloak.example.com/auth/realms/master/protocol/openid-connect/auth',
+            //     'token_url' => $_ENV['OAUTH2_KEYCLOAK_TOKEN_URL'] ?? 'https://keycloak.example.com/auth/realms/master/protocol/openid-connect/token',
+            //     'user_info_url' => $_ENV['OAUTH2_KEYCLOAK_USER_INFO_URL'] ?? 'https://keycloak.example.com/auth/realms/master/protocol/openid-connect/userinfo',
+            //     'scope' => $_ENV['OAUTH2_KEYCLOAK_SCOPE'] ?? 'openid email profile',
+            //     'user_id_field' => $_ENV['OAUTH2_KEYCLOAK_USER_ID_FIELD'] ?? 'sub',
+            //     'user_name_field' => $_ENV['OAUTH2_KEYCLOAK_USER_NAME_FIELD'] ?? 'name',
+            //     'user_email_field' => $_ENV['OAUTH2_KEYCLOAK_USER_EMAIL_FIELD'] ?? 'email',
+            //     'user_avatar_field' => $_ENV['OAUTH2_KEYCLOAK_USER_AVATAR_FIELD'] ?? 'picture',
+            //     'icon_svg' => $_ENV['OAUTH2_KEYCLOAK_ICON_SVG'] ?? '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>',
+            //     'additional_params' => [], // Extra parameters for authorization URL
+            // ],
+        ],
+        'env_custom_providers' => (function() {
+            // Dynamic custom providers from environment variables
+            // Format: OAUTH2_CUSTOM_PROVIDER_NAME_* where NAME is the provider key
+            $customProviders = [];
+            $baseUrl = $_ENV['OAUTH2_BASE_URL'] ?? 'http://localhost:8080';
+            
+            // Find all custom provider prefixes
+            $providerPrefixes = [];
+            foreach ($_ENV as $key => $value) {
+                if (preg_match('/^OAUTH2_CUSTOM_PROVIDER_([A-Z_]+)_ENABLED$/', $key, $matches)) {
+                    $providerName = strtolower($matches[1]);
+                    if (filter_var($value, FILTER_VALIDATE_BOOLEAN)) {
+                        $providerPrefixes[] = $providerName;
+                    }
+                }
+            }
+            
+            // Build configuration for each custom provider
+            foreach ($providerPrefixes as $providerName) {
+                $providerKey = strtoupper($providerName);
+                $customProviders[$providerName] = [
+                    'enabled' => true,
+                    'display_name' => $_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_DISPLAY_NAME"] ?? ucfirst($providerName),
+                    'client_id' => $_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_CLIENT_ID"] ?? '',
+                    'client_secret' => $_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_CLIENT_SECRET"] ?? '',
+                    'redirect_uri' => $_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_REDIRECT_URI"] ?? $baseUrl . "/backend/index.php/auth/oauth/{$providerName}/callback",
+                    'authorize_url' => $_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_AUTHORIZE_URL"] ?? '',
+                    'token_url' => $_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_TOKEN_URL"] ?? '',
+                    'user_info_url' => $_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_USER_INFO_URL"] ?? '',
+                    'scope' => $_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_SCOPE"] ?? 'openid email profile',
+                    'user_id_field' => $_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_USER_ID_FIELD"] ?? 'sub',
+                    'user_name_field' => $_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_USER_NAME_FIELD"] ?? 'name',
+                    'user_email_field' => $_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_USER_EMAIL_FIELD"] ?? 'email',
+                    'user_avatar_field' => $_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_USER_AVATAR_FIELD"] ?? 'picture',
+                    'icon_svg' => $_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_ICON_SVG"] ?? '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>',
+                    'additional_params' => !empty($_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_ADDITIONAL_PARAMS"]) ? 
+                        json_decode($_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_ADDITIONAL_PARAMS"], true) : [],
+                ];
+            }
+            
+            return $customProviders;
+        })(),
     ],
     
     // AI translation and proofreading settings

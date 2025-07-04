@@ -370,7 +370,7 @@ try {
                         throw new Exception('Provider not available');
                     }
                     
-                    $oauthProvider = OAuth2ProviderFactory::create($provider, $oauthProviders[$provider]['config']);
+                    $oauthProvider = OAuth2ProviderFactory::create($provider, $oauthProviders[$provider]['config'], $config);
                     $state = $auth->generateOAuth2State($provider);
                     $authUrl = $oauthProvider->getAuthorizationUrl($state);
                     
@@ -404,7 +404,7 @@ try {
                         throw new Exception('Provider not available');
                     }
                     
-                    $oauthProvider = OAuth2ProviderFactory::create($provider, $oauthProviders[$provider]['config']);
+                    $oauthProvider = OAuth2ProviderFactory::create($provider, $oauthProviders[$provider]['config'], $config);
                     $accessToken = $oauthProvider->getAccessToken($_GET['code']);
                     $userInfo = $oauthProvider->getUserInfo($accessToken);
                     
