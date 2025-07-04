@@ -128,12 +128,32 @@ function fixDataForJavaScript($data) {
     return $data;
 }
 
+function fixDoubleEscapedNewlines($data) {
+    if (is_array($data)) {
+        foreach ($data as $key => $value) {
+            $data[$key] = fixDoubleEscapedNewlines($value);
+        }
+    } elseif (is_object($data)) {
+        foreach ($data as $key => $value) {
+            $data->$key = fixDoubleEscapedNewlines($value);
+        }
+    } elseif (is_string($data)) {
+        // Convert double-escaped newlines (\\n) back to single-escaped newlines (\n)
+        // This fixes the issue where textareas convert actual newlines to \\n
+        $data = str_replace('\\n', "\n", $data);
+    }
+    return $data;
+}
+
 function generateXcString($data) {
     // Ensure objects stay as objects (not arrays) in the structure
     $data = ensureObjectsStayObjects($data);
     
+    // Fix double-escaped newlines from frontend textarea inputs
+    $data = fixDoubleEscapedNewlines($data);
+    
     // Generate JSON with proper formatting
-    $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     
     // Convert 4-space indentation to 2-space indentation
     $json = preg_replace_callback('/^(    )+/m', function($matches) {

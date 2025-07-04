@@ -1,0 +1,17 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "multiline_test" : {
+      "comment" : "Test string with newlines",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Line 1\nLine 2\nLine 3"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}
