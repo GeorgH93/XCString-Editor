@@ -652,6 +652,8 @@ header {
     padding: 0 15px;
     color: #86868b;
     font-size: 0.9rem;
+    position: relative;
+    z-index: 1;
 }
 
 .oauth2-buttons {

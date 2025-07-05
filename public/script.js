@@ -185,6 +185,7 @@ class XCStringEditor {
                 this.aiConfig = result.config;
                 this.updateAuthUI();
                 this.updateOAuth2UI();
+                this.updateRegistrationUI();
                 this.updateAIUI();
                 if (this.currentUser) {
                     this.showFileManagement();
@@ -261,6 +262,18 @@ class XCStringEditor {
         
         loginOAuth2Section.style.display = 'block';
         registerOAuth2Section.style.display = 'block';
+    }
+    
+    updateRegistrationUI() {
+        const showRegisterLink = document.getElementById('showRegister');
+        if (showRegisterLink) {
+            const registerParagraph = showRegisterLink.closest('p');
+            if (this.config?.registration_enabled) {
+                if (registerParagraph) registerParagraph.style.display = 'block';
+            } else {
+                if (registerParagraph) registerParagraph.style.display = 'none';
+            }
+        }
     }
     
     getProviderDisplayName(provider) {
