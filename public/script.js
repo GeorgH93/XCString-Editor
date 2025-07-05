@@ -248,9 +248,10 @@ class XCStringEditor {
         const oauth2ButtonsHtml = this.config.oauth2_providers.map(provider => {
             const providerName = this.getProviderDisplayName(provider);
             const providerIcon = this.getProviderIcon(provider);
+            const providerKey = provider.name || provider; // Handle both object and string formats
             
             return `
-                <a href="/backend/index.php/auth/oauth/${provider.name}/redirect" class="oauth2-btn ${provider.name}">
+                <a href="/backend/index.php/auth/oauth/${providerKey}/redirect" class="oauth2-btn ${providerKey}">
                     ${providerIcon}
                     Continue with ${providerName}
                 </a>

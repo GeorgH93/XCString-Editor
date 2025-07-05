@@ -3,10 +3,16 @@
 abstract class OAuth2Provider {
     protected $config;
     protected $providerName;
+    protected $baseUrl;
     
-    public function __construct($config, $providerName) {
+    public function __construct($config, $providerName, $baseUrl) {
         $this->config = $config;
         $this->providerName = $providerName;
+        $this->baseUrl = $baseUrl;
+    }
+    
+    protected function getRedirectUri() {
+        return $this->baseUrl . '/backend/index.php/auth/oauth/' . $this->providerName . '/callback';
     }
     
     abstract public function getAuthorizationUrl($state = null);
@@ -81,7 +87,7 @@ class GoogleOAuth2Provider extends OAuth2Provider {
         
         $params = [
             'client_id' => $this->config['client_id'],
-            'redirect_uri' => $this->config['redirect_uri'],
+            'redirect_uri' => $this->getRedirectUri(),
             'scope' => 'openid email profile',
             'response_type' => 'code',
             'state' => $state,
@@ -98,7 +104,7 @@ class GoogleOAuth2Provider extends OAuth2Provider {
             'client_secret' => $this->config['client_secret'],
             'code' => $authorizationCode,
             'grant_type' => 'authorization_code',
-            'redirect_uri' => $this->config['redirect_uri'],
+            'redirect_uri' => $this->getRedirectUri(),
         ];
         
         $response = $this->makeHttpRequest(
@@ -147,7 +153,7 @@ class GitHubOAuth2Provider extends OAuth2Provider {
         
         $params = [
             'client_id' => $this->config['client_id'],
-            'redirect_uri' => $this->config['redirect_uri'],
+            'redirect_uri' => $this->getRedirectUri(),
             'scope' => 'user:email',
             'state' => $state,
         ];
@@ -233,7 +239,7 @@ class MicrosoftOAuth2Provider extends OAuth2Provider {
         
         $params = [
             'client_id' => $this->config['client_id'],
-            'redirect_uri' => $this->config['redirect_uri'],
+            'redirect_uri' => $this->getRedirectUri(),
             'scope' => 'openid email profile User.Read',
             'response_type' => 'code',
             'state' => $state,
@@ -250,7 +256,7 @@ class MicrosoftOAuth2Provider extends OAuth2Provider {
             'client_secret' => $this->config['client_secret'],
             'code' => $authorizationCode,
             'grant_type' => 'authorization_code',
-            'redirect_uri' => $this->config['redirect_uri'],
+            'redirect_uri' => $this->getRedirectUri(),
         ];
         
         $response = $this->makeHttpRequest(
@@ -301,7 +307,7 @@ class GitLabOAuth2Provider extends OAuth2Provider {
         
         $params = [
             'client_id' => $this->config['client_id'],
-            'redirect_uri' => $this->config['redirect_uri'],
+            'redirect_uri' => $this->getRedirectUri(),
             'scope' => 'read_user',
             'response_type' => 'code',
             'state' => $state,
@@ -318,7 +324,7 @@ class GitLabOAuth2Provider extends OAuth2Provider {
             'client_secret' => $this->config['client_secret'],
             'code' => $authorizationCode,
             'grant_type' => 'authorization_code',
-            'redirect_uri' => $this->config['redirect_uri'],
+            'redirect_uri' => $this->getRedirectUri(),
         ];
         
         $response = $this->makeHttpRequest(
@@ -369,7 +375,7 @@ class CustomOAuth2Provider extends OAuth2Provider {
         
         $params = [
             'client_id' => $this->config['client_id'],
-            'redirect_uri' => $this->config['redirect_uri'],
+            'redirect_uri' => $this->getRedirectUri(),
             'scope' => $this->config['scope'],
             'response_type' => 'code',
             'state' => $state,
@@ -389,7 +395,7 @@ class CustomOAuth2Provider extends OAuth2Provider {
             'client_secret' => $this->config['client_secret'],
             'code' => $authorizationCode,
             'grant_type' => 'authorization_code',
-            'redirect_uri' => $this->config['redirect_uri'],
+            'redirect_uri' => $this->getRedirectUri(),
         ];
         
         $response = $this->makeHttpRequest(
@@ -431,19 +437,21 @@ class CustomOAuth2Provider extends OAuth2Provider {
 
 class OAuth2ProviderFactory {
     public static function create($providerName, $config, $mainConfig = null) {
+        $baseUrl = $mainConfig['app']['base_url'] ?? 'http://localhost:8080';
+        
         switch ($providerName) {
             case 'google':
-                return new GoogleOAuth2Provider($config, $providerName);
+                return new GoogleOAuth2Provider($config, $providerName, $baseUrl);
             case 'github':
-                return new GitHubOAuth2Provider($config, $providerName);
+                return new GitHubOAuth2Provider($config, $providerName, $baseUrl);
             case 'microsoft':
-                return new MicrosoftOAuth2Provider($config, $providerName);
+                return new MicrosoftOAuth2Provider($config, $providerName, $baseUrl);
             case 'gitlab':
-                return new GitLabOAuth2Provider($config, $providerName);
+                return new GitLabOAuth2Provider($config, $providerName, $baseUrl);
             default:
                 // Check if it's a custom provider
                 if ($mainConfig && self::isCustomProvider($providerName, $mainConfig)) {
-                    return new CustomOAuth2Provider($config, $providerName);
+                    return new CustomOAuth2Provider($config, $providerName, $baseUrl);
                 }
                 throw new Exception("Unsupported OAuth2 provider: $providerName");
         }

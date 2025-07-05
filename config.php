@@ -37,32 +37,27 @@ return [
     // OAuth2 providers configuration
     'oauth2' => [
         'enabled' => filter_var($_ENV['OAUTH2_ENABLED'] ?? 'false', FILTER_VALIDATE_BOOLEAN), // Set to true to enable OAuth2 authentication
-        'base_url' => $_ENV['OAUTH2_BASE_URL'] ?? 'http://localhost:8080', // Your application's base URL
         'providers' => [
             'google' => [
                 'enabled' => filter_var($_ENV['OAUTH2_GOOGLE_ENABLED'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
                 'client_id' => $_ENV['OAUTH2_GOOGLE_CLIENT_ID'] ?? '',
                 'client_secret' => $_ENV['OAUTH2_GOOGLE_CLIENT_SECRET'] ?? '',
-                'redirect_uri' => $_ENV['OAUTH2_GOOGLE_REDIRECT_URI'] ?? ($_ENV['OAUTH2_BASE_URL'] ?? 'http://localhost:8080') . '/backend/index.php/auth/oauth/google/callback',
             ],
             'github' => [
                 'enabled' => filter_var($_ENV['OAUTH2_GITHUB_ENABLED'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
                 'client_id' => $_ENV['OAUTH2_GITHUB_CLIENT_ID'] ?? '',
                 'client_secret' => $_ENV['OAUTH2_GITHUB_CLIENT_SECRET'] ?? '',
-                'redirect_uri' => $_ENV['OAUTH2_GITHUB_REDIRECT_URI'] ?? ($_ENV['OAUTH2_BASE_URL'] ?? 'http://localhost:8080') . '/backend/index.php/auth/oauth/github/callback',
             ],
             'microsoft' => [
                 'enabled' => filter_var($_ENV['OAUTH2_MICROSOFT_ENABLED'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
                 'client_id' => $_ENV['OAUTH2_MICROSOFT_CLIENT_ID'] ?? '',
                 'client_secret' => $_ENV['OAUTH2_MICROSOFT_CLIENT_SECRET'] ?? '',
-                'redirect_uri' => $_ENV['OAUTH2_MICROSOFT_REDIRECT_URI'] ?? ($_ENV['OAUTH2_BASE_URL'] ?? 'http://localhost:8080') . '/backend/index.php/auth/oauth/microsoft/callback',
                 'tenant' => $_ENV['OAUTH2_MICROSOFT_TENANT'] ?? 'common', // 'common', 'organizations', 'consumers', or specific tenant ID
             ],
             'gitlab' => [
                 'enabled' => filter_var($_ENV['OAUTH2_GITLAB_ENABLED'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
                 'client_id' => $_ENV['OAUTH2_GITLAB_CLIENT_ID'] ?? '',
                 'client_secret' => $_ENV['OAUTH2_GITLAB_CLIENT_SECRET'] ?? '',
-                'redirect_uri' => $_ENV['OAUTH2_GITLAB_REDIRECT_URI'] ?? ($_ENV['OAUTH2_BASE_URL'] ?? 'http://localhost:8080') . '/backend/index.php/auth/oauth/gitlab/callback',
                 'instance_url' => $_ENV['OAUTH2_GITLAB_INSTANCE_URL'] ?? 'https://gitlab.com', // For self-hosted GitLab instances
             ],
         ],
@@ -91,7 +86,7 @@ return [
             // Dynamic custom providers from environment variables
             // Format: OAUTH2_CUSTOM_PROVIDER_NAME_* where NAME is the provider key
             $customProviders = [];
-            $baseUrl = $_ENV['OAUTH2_BASE_URL'] ?? 'http://localhost:8080';
+            $baseUrl = $_ENV['APP_BASE_URL'] ?? 'http://localhost:8080';
             
             // Find all custom provider prefixes
             $providerPrefixes = [];
@@ -112,7 +107,6 @@ return [
                     'display_name' => $_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_DISPLAY_NAME"] ?? ucfirst($providerName),
                     'client_id' => $_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_CLIENT_ID"] ?? '',
                     'client_secret' => $_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_CLIENT_SECRET"] ?? '',
-                    'redirect_uri' => $_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_REDIRECT_URI"] ?? $baseUrl . "/backend/index.php/auth/oauth/{$providerName}/callback",
                     'authorize_url' => $_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_AUTHORIZE_URL"] ?? '',
                     'token_url' => $_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_TOKEN_URL"] ?? '',
                     'user_info_url' => $_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_USER_INFO_URL"] ?? '',
@@ -184,5 +178,6 @@ return [
     'app' => [
         'name' => $_ENV['APP_NAME'] ?? 'XCString Editor',
         'debug' => filter_var($_ENV['APP_DEBUG'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
+        'base_url' => $_ENV['APP_BASE_URL'] ?? 'http://localhost:8080', // Application's base URL
     ],
 ];

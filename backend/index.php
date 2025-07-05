@@ -373,7 +373,7 @@ try {
                     'config' => [
                         'registration_enabled' => $config['registration']['enabled'],
                         'oauth2_enabled' => $config['oauth2']['enabled'],
-                        'oauth2_providers' => array_keys($oauthProviders),
+                        'oauth2_providers' => array_values($oauthProviders),
                         'ai_enabled' => $aiService->isEnabled(),
                         'ai_providers' => $aiService->getAvailableProviders()
                     ]
@@ -397,7 +397,7 @@ try {
                     header('Location: ' . $authUrl);
                     exit;
                 } catch (Exception $e) {
-                    header('Location: ' . $config['oauth2']['base_url'] . '?oauth_error=' . urlencode($e->getMessage()));
+                    header('Location: ' . $config['app']['base_url'] . '?oauth_error=' . urlencode($e->getMessage()));
                     exit;
                 }
                 
@@ -430,10 +430,10 @@ try {
                     
                     $user = $auth->handleOAuth2Login($userInfo);
                     
-                    header('Location: ' . $config['oauth2']['base_url'] . '?oauth_success=1');
+                    header('Location: ' . $config['app']['base_url'] . '?oauth_success=1');
                     exit;
                 } catch (Exception $e) {
-                    header('Location: ' . $config['oauth2']['base_url'] . '?oauth_error=' . urlencode($e->getMessage()));
+                    header('Location: ' . $config['app']['base_url'] . '?oauth_error=' . urlencode($e->getMessage()));
                     exit;
                 }
                 
