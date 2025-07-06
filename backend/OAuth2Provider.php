@@ -49,10 +49,12 @@ abstract class OAuth2Provider {
             curl_setopt($ch, CURLOPT_POST, true);
             if (is_array($data)) {
                 curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
-                curl_setopt($ch, CURLOPT_HTTPHEADER, array_merge(
-                    curl_getinfo($ch, CURLINFO_HTTPHEADER) ?: [],
-                    ['Content-Type: application/x-www-form-urlencoded']
-                ));
+                // Add Content-Type header for form data
+                curl_setopt($ch, CURLOPT_HTTPHEADER, array_merge([
+                    'User-Agent: XCString-Editor/1.0',
+                    'Accept: application/json',
+                    'Content-Type: application/x-www-form-urlencoded'
+                ], $headers));
             } else {
                 curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
             }
