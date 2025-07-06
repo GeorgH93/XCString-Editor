@@ -104,6 +104,22 @@ class XCStringEditor {
         this.uploadProgress = document.getElementById('uploadProgress');
         this.uploadProgressFill = document.getElementById('uploadProgressFill');
         this.uploadProgressText = document.getElementById('uploadProgressText');
+        
+        // Presigned URL elements
+        this.generateUploadUrlBtn = document.getElementById('generateUploadUrlBtn');
+        this.presignedUrlModal = document.getElementById('presignedUrlModal');
+        this.closePresignedUrlModal = document.getElementById('closePresignedUrlModal');
+        this.closePresignedUrl = document.getElementById('closePresignedUrl');
+        this.urlCommentPrefix = document.getElementById('urlCommentPrefix');
+        this.generateUrlBtn = document.getElementById('generateUrlBtn');
+        this.generatedUrlSection = document.getElementById('generatedUrlSection');
+        this.generatedUrl = document.getElementById('generatedUrl');
+        this.copyUrlBtn = document.getElementById('copyUrlBtn');
+        this.urlExpiration = document.getElementById('urlExpiration');
+        this.curlExample = document.getElementById('curlExample');
+        this.copyCurlBtn = document.getElementById('copyCurlBtn');
+        this.existingUrlsSection = document.getElementById('existingUrlsSection');
+        this.existingUrlsList = document.getElementById('existingUrlsList');
     }
 
     setupEventListeners() {
@@ -230,6 +246,37 @@ class XCStringEditor {
         
         this.versionFile.addEventListener('change', (e) => {
             this.validateUploadFile(e.target.files[0]);
+        });
+        
+        // Presigned URL listeners
+        this.generateUploadUrlBtn.addEventListener('click', () => {
+            this.showPresignedUrlModal();
+        });
+        
+        this.closePresignedUrlModal.addEventListener('click', () => {
+            this.hidePresignedUrlModal();
+        });
+        
+        this.closePresignedUrl.addEventListener('click', () => {
+            this.hidePresignedUrlModal();
+        });
+        
+        this.presignedUrlModal.addEventListener('click', (e) => {
+            if (e.target === this.presignedUrlModal) {
+                this.hidePresignedUrlModal();
+            }
+        });
+        
+        this.generateUrlBtn.addEventListener('click', () => {
+            this.generatePresignedUrl();
+        });
+        
+        this.copyUrlBtn.addEventListener('click', () => {
+            this.copyToClipboard(this.generatedUrl.value);
+        });
+        
+        this.copyCurlBtn.addEventListener('click', () => {
+            this.copyToClipboard(this.curlExample.textContent);
         });
         
         // Status bar listeners
@@ -3289,6 +3336,187 @@ class XCStringEditor {
                 this.uploadProgress.style.display = 'none';
             }, 1000);
         }
+    }
+    
+    showPresignedUrlModal() {
+        this.presignedUrlModal.style.display = 'block';
+        this.urlCommentPrefix.value = '';
+        this.generatedUrlSection.style.display = 'none';
+        this.loadExistingPresignedUrls();
+    }
+    
+    hidePresignedUrlModal() {
+        this.presignedUrlModal.style.display = 'none';
+    }
+    
+    async generatePresignedUrl() {
+        if (!this.currentFileId) {
+            this.showNotification('No file currently open', 'error');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/backend/index.php/files/${this.currentFileId}/generate-upload-url`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    comment_prefix: this.urlCommentPrefix.value || null
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.displayGeneratedUrl(result.data);
+                this.showNotification('Upload URL generated successfully', 'success');
+                // Refresh existing URLs
+                this.loadExistingPresignedUrls();
+            } else {
+                this.showNotification(result.error || 'Failed to generate URL', 'error');
+            }
+        } catch (error) {
+            console.error('Generate URL error:', error);
+            this.showNotification('Failed to generate URL: ' + error.message, 'error');
+        }
+    }
+    
+    displayGeneratedUrl(data) {
+        this.generatedUrl.value = data.upload_url;
+        this.urlExpiration.textContent = new Date(data.expires_at).toLocaleString();
+        
+        // Generate curl example
+        const curlCommand = `curl -X PUT "${data.upload_url}" \\
+  -H "Content-Type: application/json" \\
+  -H "X-Comment: Your version comment here" \\
+  --data-binary "@your-file.xcstrings"`;
+        
+        this.curlExample.textContent = curlCommand;
+        this.generatedUrlSection.style.display = 'block';
+    }
+    
+    async loadExistingPresignedUrls() {
+        if (!this.currentFileId) return;
+        
+        try {
+            const response = await fetch(`/backend/index.php/files/${this.currentFileId}/upload-urls`);
+            const result = await response.json();
+            
+            if (result.success) {
+                this.renderExistingUrls(result.urls);
+            }
+        } catch (error) {
+            console.error('Error loading existing URLs:', error);
+        }
+    }
+    
+    renderExistingUrls(urls) {
+        if (!urls || urls.length === 0) {
+            this.existingUrlsList.innerHTML = '<p class="empty-state">No upload URLs created yet</p>';
+            return;
+        }
+        
+        this.existingUrlsList.innerHTML = urls.map(url => {
+            const isExpired = new Date(url.expires_at) < new Date();
+            const isUsed = url.is_used;
+            
+            let statusClass = '';
+            let statusText = 'Active';
+            
+            if (isUsed) {
+                statusClass = 'used';
+                statusText = `Used ${new Date(url.used_at).toLocaleDateString()}`;
+            } else if (isExpired) {
+                statusClass = 'expired';
+                statusText = 'Expired';
+            }
+            
+            return `
+                <div class="url-item ${statusClass}">
+                    <div class="url-item-info">
+                        <div class="url-item-title">
+                            ${url.comment_prefix || 'Upload URL'} 
+                            <span class="status">(${statusText})</span>
+                        </div>
+                        <div class="url-item-details">
+                            Created: ${new Date(url.created_at).toLocaleDateString()} | 
+                            Expires: ${new Date(url.expires_at).toLocaleDateString()}
+                        </div>
+                    </div>
+                    <div class="url-item-actions">
+                        ${!isUsed && !isExpired ? `
+                            <button class="btn btn-sm btn-secondary" onclick="editor.copyToClipboard('${this.buildUploadUrl(url.token)}')">
+                                Copy URL
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="editor.revokePresignedUrl(${url.id})">
+                                Revoke
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    buildUploadUrl(token) {
+        const baseUrl = window.location.origin;
+        return `${baseUrl}/backend/index.php/upload/${token}`;
+    }
+    
+    async revokePresignedUrl(urlId) {
+        const confirmed = await this.showConfirmDialog(
+            'Revoke Upload URL',
+            'Are you sure you want to revoke this upload URL? It will no longer be usable.'
+        );
+        
+        if (!confirmed) return;
+        
+        try {
+            const response = await fetch(`/backend/index.php/files/${this.currentFileId}/upload-urls/${urlId}`, {
+                method: 'DELETE'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.showNotification('Upload URL revoked successfully', 'success');
+                this.loadExistingPresignedUrls();
+            } else {
+                this.showNotification(result.error || 'Failed to revoke URL', 'error');
+            }
+        } catch (error) {
+            console.error('Revoke URL error:', error);
+            this.showNotification('Failed to revoke URL: ' + error.message, 'error');
+        }
+    }
+    
+    copyToClipboard(text) {
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).then(() => {
+                this.showNotification('Copied to clipboard', 'success');
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                this.fallbackCopyToClipboard(text);
+            });
+        } else {
+            this.fallbackCopyToClipboard(text);
+        }
+    }
+    
+    fallbackCopyToClipboard(text) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            this.showNotification('Copied to clipboard', 'success');
+        } catch (err) {
+            this.showNotification('Failed to copy to clipboard', 'error');
+        }
+        document.body.removeChild(textArea);
     }
     
     renderVersionHistory(versions, stats) {

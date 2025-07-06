@@ -66,6 +66,9 @@ class FileManager {
             // Populate existing files with initial versions
             $this->populateExistingFileVersions();
             
+            // Also ensure presigned URLs table exists
+            $this->ensurePresignedUrlsTable();
+            
         } catch (Exception $e) {
             error_log("Failed to create version history table: " . $e->getMessage());
             // Don't throw - allow app to continue without version history
@@ -107,6 +110,62 @@ class FileManager {
         } catch (Exception $e) {
             error_log("Failed to populate existing file versions: " . $e->getMessage());
             // Don't throw - version history will work for new files
+        }
+    }
+    
+    private function ensurePresignedUrlsTable() {
+        try {
+            // Check if table exists
+            $this->db->fetchOne("SELECT COUNT(*) FROM presigned_upload_urls LIMIT 1");
+            return; // Table exists
+        } catch (Exception $e) {
+            // Table doesn't exist, create it
+        }
+        
+        try {
+            // Create presigned_upload_urls table
+            $sql = "CREATE TABLE presigned_upload_urls (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                file_id INTEGER NOT NULL,
+                token VARCHAR(64) NOT NULL UNIQUE,
+                created_by_user_id INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP NOT NULL,
+                is_used BOOLEAN DEFAULT FALSE,
+                used_at TIMESTAMP NULL,
+                comment_prefix TEXT,
+                FOREIGN KEY (file_id) REFERENCES xcstring_files(id) ON DELETE CASCADE,
+                FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE RESTRICT
+            )";
+            
+            // Adapt SQL for different database drivers
+            if ($this->config['database']['driver'] === 'mysql') {
+                $sql = str_replace('INTEGER PRIMARY KEY AUTOINCREMENT', 'INT AUTO_INCREMENT PRIMARY KEY', $sql);
+                $sql = str_replace('BOOLEAN', 'TINYINT(1)', $sql);
+            } elseif ($this->config['database']['driver'] === 'postgres') {
+                $sql = str_replace('INTEGER PRIMARY KEY AUTOINCREMENT', 'SERIAL PRIMARY KEY', $sql);
+            }
+            
+            $this->db->execute($sql);
+            
+            // Create indexes
+            $indexes = [
+                "CREATE INDEX idx_presigned_urls_token ON presigned_upload_urls(token)",
+                "CREATE INDEX idx_presigned_urls_file_id ON presigned_upload_urls(file_id)",
+                "CREATE INDEX idx_presigned_urls_expires_at ON presigned_upload_urls(expires_at)"
+            ];
+            
+            foreach ($indexes as $indexSql) {
+                try {
+                    $this->db->execute($indexSql);
+                } catch (Exception $e) {
+                    // Ignore index creation errors - they might already exist
+                }
+            }
+            
+        } catch (Exception $e) {
+            error_log("Failed to create presigned URLs table: " . $e->getMessage());
+            // Don't throw - allow app to continue without presigned URLs
         }
     }
     
@@ -558,5 +617,109 @@ class FileManager {
              WHERE file_id = ?',
             [$fileId]
         );
+    }
+    
+    public function generatePresignedUploadUrl($fileId, $userId, $commentPrefix = null) {
+        // Check if user can edit this file
+        if (!$this->canEditFile($fileId, $userId)) {
+            throw new Exception('Permission denied');
+        }
+        
+        // Generate a secure random token
+        $token = bin2hex(random_bytes(32));
+        
+        // Set expiration to 1 year from now
+        $expiresAt = date('Y-m-d H:i:s', strtotime('+1 year'));
+        
+        // Insert presigned URL record
+        $this->db->execute('
+            INSERT INTO presigned_upload_urls 
+            (file_id, token, created_by_user_id, expires_at, comment_prefix) 
+            VALUES (?, ?, ?, ?, ?)',
+            [$fileId, $token, $userId, $expiresAt, $commentPrefix]
+        );
+        
+        return [
+            'token' => $token,
+            'expires_at' => $expiresAt,
+            'upload_url' => $this->buildPresignedUploadUrl($token)
+        ];
+    }
+    
+    private function buildPresignedUploadUrl($token) {
+        $baseUrl = $this->config['app']['base_url'] ?? 'http://localhost:8080';
+        return $baseUrl . '/backend/index.php/upload/' . $token;
+    }
+    
+    public function uploadViaPresignedUrl($token, $content, $comment = null) {
+        // Get presigned URL record  
+        $currentTime = date('Y-m-d H:i:s');
+        $presignedUrl = $this->db->fetchOne('
+            SELECT * FROM presigned_upload_urls 
+            WHERE token = ? AND is_used = FALSE AND expires_at > ?',
+            [$token, $currentTime]
+        );
+        
+        if (!$presignedUrl) {
+            throw new Exception('Invalid or expired upload token');
+        }
+        
+        // Build comment with prefix if provided
+        $finalComment = $comment;
+        if ($presignedUrl['comment_prefix']) {
+            $finalComment = $presignedUrl['comment_prefix'] . ($comment ? ' - ' . $comment : '');
+        }
+        if (!$finalComment) {
+            $finalComment = 'Uploaded via presigned URL';
+        }
+        
+        // Update the file (creates new version)
+        $this->updateFile($presignedUrl['file_id'], $presignedUrl['created_by_user_id'], $content, $finalComment);
+        
+        // Mark presigned URL as used
+        $usedAt = date('Y-m-d H:i:s');
+        $this->db->execute('
+            UPDATE presigned_upload_urls 
+            SET is_used = TRUE, used_at = ? 
+            WHERE token = ?',
+            [$usedAt, $token]
+        );
+        
+        return [
+            'file_id' => $presignedUrl['file_id'],
+            'message' => 'Version uploaded successfully via presigned URL'
+        ];
+    }
+    
+    public function getPresignedUrls($fileId, $userId) {
+        // Check if user can view this file
+        if (!$this->canViewFile($fileId, $userId)) {
+            throw new Exception('Permission denied');
+        }
+        
+        return $this->db->fetchAll('
+            SELECT id, token, created_at, expires_at, is_used, used_at, comment_prefix
+            FROM presigned_upload_urls 
+            WHERE file_id = ? 
+            ORDER BY created_at DESC',
+            [$fileId]
+        );
+    }
+    
+    public function revokePresignedUrl($fileId, $urlId, $userId) {
+        // Check if user can edit this file
+        if (!$this->canEditFile($fileId, $userId)) {
+            throw new Exception('Permission denied');
+        }
+        
+        $revokedAt = date('Y-m-d H:i:s');
+        $this->db->execute('
+            UPDATE presigned_upload_urls 
+            SET is_used = TRUE, used_at = ? 
+            WHERE id = ? AND file_id = ?',
+            [$revokedAt, $urlId, $fileId]
+        );
+        
+        return true;
     }
 }

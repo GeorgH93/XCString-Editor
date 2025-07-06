@@ -429,6 +429,16 @@ try {
                 );
                 echo json_encode(['success' => true]);
                 
+            } elseif (preg_match('/\/files\/(\d+)\/generate-upload-url/', $requestUri, $matches)) {
+                if (!$currentUser) {
+                    throw new Exception('Authentication required');
+                }
+                $fileId = $matches[1];
+                $commentPrefix = $input['comment_prefix'] ?? null;
+                
+                $result = $fileManager->generatePresignedUploadUrl($fileId, $currentUser['id'], $commentPrefix);
+                echo json_encode(['success' => true, 'data' => $result]);
+                
             } else {
                 throw new Exception('Invalid endpoint');
             }
@@ -573,6 +583,25 @@ try {
                 $shares = $fileManager->getFileShares($fileId, $currentUser['id']);
                 echo json_encode(['success' => true, 'shares' => $shares]);
                 
+            } elseif (preg_match('/\/files\/(\d+)\/upload-urls/', $requestUri, $matches)) {
+                if (!$currentUser) {
+                    throw new Exception('Authentication required');
+                }
+                $fileId = $matches[1];
+                $urls = $fileManager->getPresignedUrls($fileId, $currentUser['id']);
+                echo json_encode(['success' => true, 'urls' => $urls]);
+                
+            } elseif (preg_match('/\/upload\/([a-f0-9]{64})/', $requestUri, $matches)) {
+                // Presigned URL upload endpoint (GET for info, PUT for upload)
+                $token = $matches[1];
+                
+                // For GET request, return upload info
+                echo json_encode([
+                    'success' => true, 
+                    'message' => 'Ready for upload',
+                    'instructions' => 'Send PUT request with xcstrings content in body'
+                ]);
+                
             } elseif (preg_match('/\/files\/(\d+)/', $requestUri, $matches)) {
                 $fileId = $matches[1];
                 $file = $fileManager->getFile($fileId, $currentUser['id'] ?? null);
@@ -605,6 +634,15 @@ try {
                 $fileManager->unshareFile($fileId, $currentUser['id'], $userId);
                 echo json_encode(['success' => true]);
                 
+            } elseif (preg_match('/\/files\/(\d+)\/upload-urls\/(\d+)/', $requestUri, $matches)) {
+                if (!$currentUser) {
+                    throw new Exception('Authentication required');
+                }
+                $fileId = $matches[1];
+                $urlId = $matches[2];
+                $fileManager->revokePresignedUrl($fileId, $urlId, $currentUser['id']);
+                echo json_encode(['success' => true]);
+                
             } elseif (preg_match('/\/files\/(\d+)/', $requestUri, $matches)) {
                 if (!$currentUser) {
                     throw new Exception('Authentication required');
@@ -612,6 +650,33 @@ try {
                 $fileId = $matches[1];
                 $fileManager->deleteFile($fileId, $currentUser['id']);
                 echo json_encode(['success' => true]);
+                
+            } else {
+                throw new Exception('Invalid endpoint');
+            }
+            break;
+            
+        case 'PUT':
+            if (preg_match('/\/upload\/([a-f0-9]{64})/', $requestUri, $matches)) {
+                // Presigned URL upload endpoint
+                $token = $matches[1];
+                $content = file_get_contents('php://input');
+                
+                if (empty($content)) {
+                    throw new Exception('No content provided');
+                }
+                
+                // Validate it's a valid xcstrings file
+                $parsed = parseXcString($content);
+                if (!$parsed) {
+                    throw new Exception('Invalid xcstrings file format');
+                }
+                
+                // Get comment from X-Comment header if provided
+                $comment = $_SERVER['HTTP_X_COMMENT'] ?? null;
+                
+                $result = $fileManager->uploadViaPresignedUrl($token, $content, $comment);
+                echo json_encode(['success' => true, 'data' => $result]);
                 
             } else {
                 throw new Exception('Invalid endpoint');

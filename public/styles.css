@@ -1542,3 +1542,183 @@ body {
     border-color: #007bff;
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
+
+/* Presigned URL Modal */
+#presignedUrlModal .modal-content {
+    max-width: 700px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.presigned-url-form {
+    margin: 20px 0;
+}
+
+.form-help {
+    font-size: 0.85rem;
+    color: #666;
+    margin-top: 5px;
+}
+
+.generated-url-section {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.url-info h4 {
+    color: #28a745;
+    margin-bottom: 15px;
+}
+
+.url-box {
+    margin-bottom: 20px;
+}
+
+.url-field {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.url-field input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.9rem;
+    background: #fff;
+}
+
+.url-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #fff;
+    border-radius: 4px;
+    border: 1px solid #e9ecef;
+}
+
+.detail-item {
+    font-size: 0.9rem;
+}
+
+.usage-instructions h5 {
+    margin-bottom: 10px;
+    color: #495057;
+}
+
+.code-block {
+    position: relative;
+    background: #2d3748;
+    border-radius: 4px;
+    padding: 15px;
+    margin: 10px 0;
+}
+
+.code-block pre {
+    color: #e2e8f0;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    margin: 0;
+    white-space: pre-wrap;
+    line-height: 1.4;
+}
+
+.code-block button {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+}
+
+.existing-urls-section {
+    margin-top: 30px;
+    border-top: 1px solid #dee2e6;
+    padding-top: 20px;
+}
+
+.urls-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.url-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    margin: 5px 0;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+}
+
+.url-item.expired {
+    opacity: 0.6;
+    background: #fff3cd;
+    border-color: #ffeaa7;
+}
+
+.url-item.used {
+    opacity: 0.6;
+    background: #d1ecf1;
+    border-color: #bee5eb;
+}
+
+.url-item-info {
+    flex: 1;
+}
+
+.url-item-title {
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.url-item-details {
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 2px;
+}
+
+.url-item-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.url-item-actions .btn {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+}
+
+@media (max-width: 768px) {
+    #presignedUrlModal .modal-content {
+        max-width: 95vw;
+        margin: 10px;
+    }
+    
+    .url-details {
+        grid-template-columns: 1fr;
+    }
+    
+    .url-field {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .url-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    
+    .url-item-actions {
+        justify-content: flex-end;
+    }
+}

@@ -284,6 +284,7 @@
             
             <div class="version-history-actions">
                 <button type="button" id="uploadVersionBtn" class="btn btn-primary">Upload Version</button>
+                <button type="button" id="generateUploadUrlBtn" class="btn btn-secondary">Generate Upload URL</button>
                 <button type="button" id="closeVersionHistory" class="btn btn-secondary">Close</button>
             </div>
         </div>
@@ -319,6 +320,70 @@
                     <button type="submit" id="uploadVersionSubmit" class="btn btn-primary">Upload Version</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Presigned Upload URL Modal -->
+    <div id="presignedUrlModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" id="closePresignedUrlModal">&times;</span>
+            <h3>Generate Upload URL</h3>
+            
+            <div class="presigned-url-form">
+                <div class="form-group">
+                    <label for="urlCommentPrefix">Comment prefix (optional):</label>
+                    <input type="text" id="urlCommentPrefix" placeholder="e.g., 'CI Build', 'External Update'">
+                    <div class="form-help">This prefix will be added to all uploads via this URL</div>
+                </div>
+                
+                <div class="form-group">
+                    <button type="button" id="generateUrlBtn" class="btn btn-primary">Generate URL</button>
+                </div>
+                
+                <div class="generated-url-section" id="generatedUrlSection" style="display: none;">
+                    <h4>Upload URL Generated</h4>
+                    <div class="url-info">
+                        <div class="url-box">
+                            <label>Upload URL:</label>
+                            <div class="url-field">
+                                <input type="text" id="generatedUrl" readonly>
+                                <button type="button" id="copyUrlBtn" class="btn btn-sm btn-secondary">Copy</button>
+                            </div>
+                        </div>
+                        
+                        <div class="url-details">
+                            <div class="detail-item">
+                                <strong>Expires:</strong> <span id="urlExpiration"></span>
+                            </div>
+                            <div class="detail-item">
+                                <strong>Method:</strong> PUT
+                            </div>
+                            <div class="detail-item">
+                                <strong>Content-Type:</strong> application/json
+                            </div>
+                        </div>
+                        
+                        <div class="usage-instructions">
+                            <h5>Usage Instructions:</h5>
+                            <div class="code-block">
+                                <pre id="curlExample"></pre>
+                                <button type="button" id="copyCurlBtn" class="btn btn-sm btn-secondary">Copy</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="existing-urls-section" id="existingUrlsSection">
+                    <h4>Existing Upload URLs</h4>
+                    <div class="urls-list" id="existingUrlsList">
+                        <!-- Existing URLs will be populated here -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-actions">
+                <button type="button" id="closePresignedUrl" class="btn btn-secondary">Close</button>
+            </div>
         </div>
     </div>
 
