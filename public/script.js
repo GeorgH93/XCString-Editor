@@ -3401,7 +3401,7 @@ class XCStringEditor {
                                 ${canEdit ? 'Make View-Only' : 'Allow Editing'}
                             </button>
                         ` : ''}
-                        <button class="btn btn-danger btn-sm" onclick="editor.removeShare('${type}', ${share.id})">
+                        <button class="btn btn-danger btn-sm" onclick="editor.removeShare('${type}', ${isCurrentShare ? share.shared_with_user_id : share.id})">
                             Remove
                         </button>
                     </div>
