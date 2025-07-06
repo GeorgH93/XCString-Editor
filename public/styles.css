@@ -292,6 +292,34 @@ header {
     min-height: 80px;
 }
 
+/* Ensure invite token field has proper layout */
+#inviteTokenField {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 5px;
+    margin-bottom: 15px;
+}
+
+#inviteTokenField label {
+    display: block;
+    font-weight: 500;
+    color: #1d1d1f;
+    font-size: 0.9rem;
+}
+
+#inviteTokenField input {
+    display: block;
+    width: 100%;
+    padding: 12px 15px;
+    border: 1px solid #d2d2d7;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background-color: #fff;
+    transition: border-color 0.2s ease;
+    margin-bottom: 5px;
+    box-sizing: border-box;
+}
+
 .localizations {
     display: grid;
     gap: 10px;
