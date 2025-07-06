@@ -398,26 +398,40 @@ class XCStringEditor {
     
     updateRegistrationUI() {
         const showRegisterLink = document.getElementById('showRegister');
+        const urlParams = new URLSearchParams(window.location.search);
+        const inviteToken = urlParams.get('invite');
+        
         if (showRegisterLink) {
             const registerParagraph = showRegisterLink.closest('p');
-            if (this.config?.registration_enabled) {
+            if (this.config?.registration_enabled || inviteToken) {
+                // Show register link if registration is enabled OR if there's an invite token
                 if (registerParagraph) registerParagraph.style.display = 'block';
-                // Hide invite token field when registration is enabled
-                if (this.inviteTokenField) this.inviteTokenField.style.display = 'none';
+                // Hide invite token field when registration is enabled (but not when using invite)
+                if (this.inviteTokenField) {
+                    this.inviteTokenField.style.display = this.config?.registration_enabled && !inviteToken ? 'none' : 'block';
+                }
             } else {
-                if (registerParagraph) registerParagraph.style.display = 'block';
+                // Hide register link when registration is disabled and no invite token
+                if (registerParagraph) registerParagraph.style.display = 'none';
                 // Show invite token field when registration is disabled
                 if (this.inviteTokenField) this.inviteTokenField.style.display = 'block';
             }
         }
         
-        // Check URL parameters for invite token
-        const urlParams = new URLSearchParams(window.location.search);
-        const inviteToken = urlParams.get('invite');
+        // Check URL parameters for invite token and auto-open registration
         if (inviteToken) {
             const inviteTokenInput = document.getElementById('registerInviteToken');
             if (inviteTokenInput) {
                 inviteTokenInput.value = inviteToken;
+            }
+            
+            // If user is not logged in and has an invite token, automatically show registration dialog
+            if (!this.currentUser) {
+                this.showAuthModal('register');
+                
+                // Clear the invite parameter from the URL after processing
+                const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                window.history.replaceState({}, document.title, newUrl);
             }
         }
     }
