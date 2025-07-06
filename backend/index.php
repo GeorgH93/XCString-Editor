@@ -383,11 +383,16 @@ try {
                 // OAuth2 login redirect
                 $provider = $matches[1];
                 try {
+                    // Check if OAuth2 is enabled
+                    if (!$config['oauth2']['enabled']) {
+                        throw new Exception('OAuth2 authentication is not enabled');
+                    }
+                    
                     require_once 'OAuth2Provider.php';
                     $oauthProviders = $auth->getOAuth2Providers();
                     
                     if (!isset($oauthProviders[$provider])) {
-                        throw new Exception('Provider not available');
+                        throw new Exception("Provider '$provider' is not configured or not available");
                     }
                     
                     $oauthProvider = OAuth2ProviderFactory::create($provider, $oauthProviders[$provider]['config'], $config);
@@ -397,6 +402,7 @@ try {
                     header('Location: ' . $authUrl);
                     exit;
                 } catch (Exception $e) {
+                    error_log("OAuth2 redirect error for provider '$provider': " . $e->getMessage());
                     header('Location: ' . $config['app']['base_url'] . '?oauth_error=' . urlencode($e->getMessage()));
                     exit;
                 }
@@ -405,6 +411,11 @@ try {
                 // OAuth2 callback
                 $provider = $matches[1];
                 try {
+                    // Check if OAuth2 is enabled
+                    if (!$config['oauth2']['enabled']) {
+                        throw new Exception('OAuth2 authentication is not enabled');
+                    }
+                    
                     if (!isset($_GET['code'], $_GET['state'])) {
                         throw new Exception('Missing authorization code or state');
                     }
@@ -421,7 +432,7 @@ try {
                     $oauthProviders = $auth->getOAuth2Providers();
                     
                     if (!isset($oauthProviders[$provider])) {
-                        throw new Exception('Provider not available');
+                        throw new Exception("Provider '$provider' is not configured or not available");
                     }
                     
                     // Get provider config - handle both built-in and custom providers
@@ -436,8 +447,16 @@ try {
                     header('Location: ' . $config['app']['base_url'] . '?oauth_success=1');
                     exit;
                 } catch (Exception $e) {
-                    error_log("OAuth2 callback error: " . $e->getMessage());
+                    error_log("OAuth2 callback error for provider '$provider': " . $e->getMessage());
                     error_log("Stack trace: " . $e->getTraceAsString());
+                    error_log("GET parameters: " . print_r($_GET, true));
+                    error_log("OAuth2 enabled: " . ($config['oauth2']['enabled'] ? 'true' : 'false'));
+                    try {
+                        $availableProviders = $auth->getOAuth2Providers();
+                        error_log("Available providers: " . print_r(array_keys($availableProviders), true));
+                    } catch (Exception $providerError) {
+                        error_log("Error getting available providers: " . $providerError->getMessage());
+                    }
                     header('Location: ' . $config['app']['base_url'] . '?oauth_error=' . urlencode($e->getMessage()));
                     exit;
                 }
