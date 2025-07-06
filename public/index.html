@@ -283,8 +283,42 @@
             </div>
             
             <div class="version-history-actions">
+                <button type="button" id="uploadVersionBtn" class="btn btn-primary">Upload Version</button>
                 <button type="button" id="closeVersionHistory" class="btn btn-secondary">Close</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Upload Version Modal -->
+    <div id="uploadVersionModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" id="closeUploadVersionModal">&times;</span>
+            <h3>Upload New Version</h3>
+            
+            <form id="uploadVersionForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="versionFile">Choose .xcstrings file:</label>
+                    <input type="file" id="versionFile" name="file" accept=".xcstrings" required>
+                    <div class="file-info" id="uploadFileInfo"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="versionComment">Version comment:</label>
+                    <textarea id="versionComment" name="comment" placeholder="Describe the changes in this version..." rows="3"></textarea>
+                </div>
+                
+                <div class="upload-progress" id="uploadProgress" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="uploadProgressFill"></div>
+                    </div>
+                    <div class="progress-text" id="uploadProgressText">Uploading...</div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" id="uploadVersionCancel" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" id="uploadVersionSubmit" class="btn btn-primary">Upload Version</button>
+                </div>
+            </form>
         </div>
     </div>
 

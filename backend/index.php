@@ -250,6 +250,30 @@ try {
                 );
                 echo json_encode(['success' => true]);
                 
+            } elseif (preg_match('/\/files\/(\d+)\/upload-version/', $requestUri, $matches)) {
+                if (!$currentUser) {
+                    throw new Exception('Authentication required');
+                }
+                $fileId = $matches[1];
+                
+                // Handle file upload
+                if (isset($_FILES['file']) && $_FILES['file']['error'] === UPLOAD_ERR_OK) {
+                    $uploadedFile = $_FILES['file'];
+                    $content = file_get_contents($uploadedFile['tmp_name']);
+                    
+                    // Validate it's a valid xcstrings file
+                    $parsed = parseXcString($content);
+                    if (!$parsed) {
+                        throw new Exception('Invalid xcstrings file format');
+                    }
+                    
+                    $comment = $_POST['comment'] ?? 'Uploaded new version';
+                    $fileManager->updateFile($fileId, $currentUser['id'], $content, $comment);
+                    echo json_encode(['success' => true, 'message' => 'Version uploaded successfully']);
+                } else {
+                    throw new Exception('No file uploaded or upload error occurred');
+                }
+                
             } elseif (strpos($requestUri, '/files/share') !== false) {
                 if (!$currentUser) {
                     throw new Exception('Authentication required');

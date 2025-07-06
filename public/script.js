@@ -91,6 +91,19 @@ class XCStringEditor {
         this.versionContributors = document.getElementById('versionContributors');
         this.versionSize = document.getElementById('versionSize');
         this.versionList = document.getElementById('versionList');
+        
+        // Upload version elements
+        this.uploadVersionBtn = document.getElementById('uploadVersionBtn');
+        this.uploadVersionModal = document.getElementById('uploadVersionModal');
+        this.closeUploadVersionModal = document.getElementById('closeUploadVersionModal');
+        this.uploadVersionForm = document.getElementById('uploadVersionForm');
+        this.uploadVersionCancel = document.getElementById('uploadVersionCancel');
+        this.versionFile = document.getElementById('versionFile');
+        this.versionComment = document.getElementById('versionComment');
+        this.uploadFileInfo = document.getElementById('uploadFileInfo');
+        this.uploadProgress = document.getElementById('uploadProgress');
+        this.uploadProgressFill = document.getElementById('uploadProgressFill');
+        this.uploadProgressText = document.getElementById('uploadProgressText');
     }
 
     setupEventListeners() {
@@ -189,6 +202,34 @@ class XCStringEditor {
             if (e.target === this.versionHistoryModal) {
                 this.hideVersionHistory();
             }
+        });
+        
+        // Upload version listeners
+        this.uploadVersionBtn.addEventListener('click', () => {
+            this.showUploadVersionModal();
+        });
+        
+        this.closeUploadVersionModal.addEventListener('click', () => {
+            this.hideUploadVersionModal();
+        });
+        
+        this.uploadVersionCancel.addEventListener('click', () => {
+            this.hideUploadVersionModal();
+        });
+        
+        this.uploadVersionModal.addEventListener('click', (e) => {
+            if (e.target === this.uploadVersionModal) {
+                this.hideUploadVersionModal();
+            }
+        });
+        
+        this.uploadVersionForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.handleVersionUpload();
+        });
+        
+        this.versionFile.addEventListener('change', (e) => {
+            this.validateUploadFile(e.target.files[0]);
         });
         
         // Status bar listeners
@@ -3139,6 +3180,115 @@ class XCStringEditor {
     
     hideVersionHistory() {
         this.versionHistoryModal.style.display = 'none';
+    }
+    
+    showUploadVersionModal() {
+        this.uploadVersionModal.style.display = 'block';
+        this.versionFile.value = '';
+        this.versionComment.value = '';
+        this.uploadFileInfo.textContent = '';
+        this.uploadFileInfo.className = 'file-info';
+        this.uploadProgress.style.display = 'none';
+        this.uploadProgressFill.style.width = '0%';
+    }
+    
+    hideUploadVersionModal() {
+        this.uploadVersionModal.style.display = 'none';
+    }
+    
+    validateUploadFile(file) {
+        if (!file) {
+            this.uploadFileInfo.textContent = '';
+            this.uploadFileInfo.className = 'file-info';
+            return false;
+        }
+        
+        // Check file extension
+        if (!file.name.toLowerCase().endsWith('.xcstrings')) {
+            this.uploadFileInfo.textContent = 'Please select a .xcstrings file';
+            this.uploadFileInfo.className = 'file-info invalid';
+            return false;
+        }
+        
+        // Check file size (max 10MB)
+        const maxSize = 10 * 1024 * 1024;
+        if (file.size > maxSize) {
+            this.uploadFileInfo.textContent = 'File is too large (max 10MB)';
+            this.uploadFileInfo.className = 'file-info invalid';
+            return false;
+        }
+        
+        this.uploadFileInfo.textContent = `Selected: ${file.name} (${Math.round(file.size / 1024)} KB)`;
+        this.uploadFileInfo.className = 'file-info valid';
+        return true;
+    }
+    
+    async handleVersionUpload() {
+        const file = this.versionFile.files[0];
+        if (!file) {
+            this.showNotification('Please select a file', 'error');
+            return;
+        }
+        
+        if (!this.validateUploadFile(file)) {
+            return;
+        }
+        
+        if (!this.currentFileId) {
+            this.showNotification('No file currently open', 'error');
+            return;
+        }
+        
+        try {
+            // Show progress
+            this.uploadProgress.style.display = 'block';
+            this.uploadProgressText.textContent = 'Uploading...';
+            this.uploadProgressFill.style.width = '0%';
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('comment', this.versionComment.value || 'Uploaded new version');
+            
+            const response = await fetch(`/backend/index.php/files/${this.currentFileId}/upload-version`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            // Simulate progress for better UX
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += 10;
+                this.uploadProgressFill.style.width = Math.min(progress, 90) + '%';
+            }, 100);
+            
+            const result = await response.json();
+            
+            clearInterval(progressInterval);
+            this.uploadProgressFill.style.width = '100%';
+            this.uploadProgressText.textContent = 'Complete!';
+            
+            if (result.success) {
+                this.showNotification(result.message || 'Version uploaded successfully', 'success');
+                this.hideUploadVersionModal();
+                
+                // Refresh version history if open
+                if (this.versionHistoryModal.style.display === 'block') {
+                    await this.showVersionHistory();
+                }
+                
+                // Refresh the current file to show the new version
+                await this.loadFile(this.currentFileId);
+            } else {
+                this.showNotification(result.error || 'Upload failed', 'error');
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            this.showNotification('Upload failed: ' + error.message, 'error');
+        } finally {
+            setTimeout(() => {
+                this.uploadProgress.style.display = 'none';
+            }, 1000);
+        }
     }
     
     renderVersionHistory(versions, stats) {

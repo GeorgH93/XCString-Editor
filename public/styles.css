@@ -1466,3 +1466,79 @@ body {
         align-self: flex-end;
     }
 }
+
+/* Upload Version Modal */
+.upload-progress {
+    margin: 20px 0;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background-color: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: #007bff;
+    transition: width 0.3s ease;
+    border-radius: 4px;
+}
+
+.progress-text {
+    text-align: center;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.file-info {
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.file-info.valid {
+    color: #28a745;
+}
+
+.file-info.invalid {
+    color: #dc3545;
+}
+
+#uploadVersionModal .modal-content {
+    max-width: 500px;
+}
+
+#uploadVersionModal textarea {
+    width: 100%;
+    min-height: 80px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+    resize: vertical;
+}
+
+#uploadVersionModal input[type="file"] {
+    width: 100%;
+    padding: 10px;
+    border: 2px dashed #ddd;
+    border-radius: 4px;
+    background: #f9f9f9;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+#uploadVersionModal input[type="file"]:hover {
+    border-color: #007bff;
+    background: #f0f7ff;
+}
+
+#uploadVersionModal input[type="file"]:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
