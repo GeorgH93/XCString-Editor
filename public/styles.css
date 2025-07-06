@@ -260,6 +260,7 @@ header {
     display: flex;
     flex-direction: column;
     gap: 5px;
+    margin-bottom: 15px;
 }
 
 .form-group label {
@@ -270,12 +271,13 @@ header {
 
 .form-group input,
 .form-group textarea {
-    padding: 10px 12px;
+    padding: 12px 15px;
     border: 1px solid #d2d2d7;
     border-radius: 6px;
     font-size: 0.9rem;
     background-color: #fff;
     transition: border-color 0.2s ease;
+    margin-bottom: 5px;
 }
 
 .form-group input:focus,
