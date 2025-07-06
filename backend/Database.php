@@ -179,13 +179,19 @@ class Database {
                 
                 error_log("Migration SQL: " . substr($sql, 0, 200) . "...");
                 
-                // Split into statements and execute
+                // Split into statements and execute in order
                 $statements = array_filter(array_map('trim', explode(';', $sql)));
                 
                 foreach ($statements as $statement) {
                     if (!empty($statement) && !$this->isComment($statement)) {
                         error_log("Executing statement: " . substr($statement, 0, 100) . "...");
-                        $this->pdo->exec($statement);
+                        try {
+                            $this->pdo->exec($statement);
+                        } catch (Exception $e) {
+                            error_log("Statement failed: " . $e->getMessage());
+                            error_log("Full statement: " . $statement);
+                            throw $e;
+                        }
                     }
                 }
             }
