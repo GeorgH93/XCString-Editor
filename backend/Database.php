@@ -72,6 +72,169 @@ class Database {
                 $this->pdo->exec($statement);
             }
         }
+        
+        // Run migrations after schema initialization
+        $this->runMigrations();
+    }
+    
+    public function runMigrations() {
+        // Ensure migrations table exists
+        $this->ensureMigrationsTable();
+        
+        // Get list of applied migrations
+        $appliedMigrations = $this->getAppliedMigrations();
+        
+        // Get all migration files
+        $migrationFiles = $this->getMigrationFiles();
+        
+        foreach ($migrationFiles as $migrationFile) {
+            $migrationName = basename($migrationFile, '.sql');
+            
+            // Skip if migration already applied
+            if (in_array($migrationName, $appliedMigrations)) {
+                continue;
+            }
+            
+            // Apply migration
+            $this->applyMigration($migrationFile, $migrationName);
+        }
+    }
+    
+    private function ensureMigrationsTable() {
+        // Check if migrations table exists
+        $tableExists = false;
+        
+        switch ($this->config['database']['driver']) {
+            case 'sqlite':
+                $result = $this->fetchOne("SELECT name FROM sqlite_master WHERE type='table' AND name='migrations'");
+                $tableExists = !empty($result);
+                break;
+            case 'mysql':
+                $result = $this->fetchOne("SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'migrations'", 
+                    [$this->config['database']['database']]);
+                $tableExists = !empty($result);
+                break;
+            case 'postgres':
+                $result = $this->fetchOne("SELECT tablename FROM pg_tables WHERE tablename = 'migrations'");
+                $tableExists = !empty($result);
+                break;
+        }
+        
+        if (!$tableExists) {
+            // Create migrations table
+            $migrationTableFile = __DIR__ . '/migrations/000_create_migrations_table.sql';
+            if (file_exists($migrationTableFile)) {
+                $sql = file_get_contents($migrationTableFile);
+                $sql = $this->adaptSqlForDriver($sql);
+                $this->pdo->exec($sql);
+            }
+        }
+    }
+    
+    private function getAppliedMigrations() {
+        try {
+            $result = $this->fetchAll("SELECT migration FROM migrations ORDER BY applied_at");
+            return array_column($result, 'migration');
+        } catch (Exception $e) {
+            // If migrations table doesn't exist yet, return empty array
+            return [];
+        }
+    }
+    
+    private function getMigrationFiles() {
+        $migrationDir = __DIR__ . '/migrations';
+        $files = glob($migrationDir . '/*.sql');
+        
+        // Sort files to ensure proper order
+        sort($files);
+        
+        // Filter out the migrations table creation file as it's handled separately
+        return array_filter($files, function($file) {
+            return basename($file) !== '000_create_migrations_table.sql';
+        });
+    }
+    
+    private function applyMigration($migrationFile, $migrationName) {
+        try {
+            $this->beginTransaction();
+            
+            // Handle special migrations that require PHP logic
+            if ($migrationName === '002_populate_existing_file_versions') {
+                $this->populateExistingFileVersions();
+            } else {
+                // Read migration SQL
+                $sql = file_get_contents($migrationFile);
+                
+                // Adapt SQL for current database driver
+                $sql = $this->adaptSqlForDriver($sql);
+                
+                // Split into statements and execute
+                $statements = array_filter(array_map('trim', explode(';', $sql)));
+                
+                foreach ($statements as $statement) {
+                    if (!empty($statement) && !$this->isComment($statement)) {
+                        $this->pdo->exec($statement);
+                    }
+                }
+            }
+            
+            // Record migration as applied
+            $this->execute("INSERT INTO migrations (migration) VALUES (?)", [$migrationName]);
+            
+            $this->commit();
+            
+            error_log("Applied migration: $migrationName");
+            
+        } catch (Exception $e) {
+            $this->rollback();
+            throw new Exception("Failed to apply migration $migrationName: " . $e->getMessage());
+        }
+    }
+    
+    private function populateExistingFileVersions() {
+        // Get all existing files that don't have versions yet
+        $files = $this->fetchAll("
+            SELECT f.id, f.content, f.user_id, f.created_at 
+            FROM xcstring_files f 
+            LEFT JOIN file_versions fv ON f.id = fv.file_id 
+            WHERE fv.id IS NULL
+        ");
+        
+        foreach ($files as $file) {
+            $contentHash = hash('sha256', $file['content']);
+            $sizeBytes = strlen($file['content']);
+            
+            // Create initial version for existing file
+            $this->execute("
+                INSERT INTO file_versions 
+                (file_id, version_number, content, comment, created_by_user_id, created_at, content_hash, size_bytes) 
+                VALUES (?, 1, ?, 'Initial version (migrated)', ?, ?, ?, ?)
+            ", [
+                $file['id'], 
+                $file['content'], 
+                $file['user_id'], 
+                $file['created_at'],
+                $contentHash, 
+                $sizeBytes
+            ]);
+        }
+        
+        error_log("Populated version history for " . count($files) . " existing files");
+    }
+    
+    private function adaptSqlForDriver($sql) {
+        switch ($this->config['database']['driver']) {
+            case 'mysql':
+                return $this->adaptSchemaForMySQL($sql);
+            case 'postgres':
+                return $this->adaptSchemaForPostgreSQL($sql);
+            default:
+                return $sql;
+        }
+    }
+    
+    private function isComment($statement) {
+        return strpos(trim($statement), '--') === 0;
     }
     
     private function adaptSchemaForMySQL($schema) {

@@ -78,7 +78,13 @@ try {
         $sqlitePath = $config['database']['sqlite_path'];
         if (!file_exists($sqlitePath)) {
             $db->initializeSchema();
+        } else {
+            // For existing databases, just run migrations
+            $db->runMigrations();
         }
+    } else {
+        // For MySQL/PostgreSQL, always check for migrations
+        $db->runMigrations();
     }
 } catch (Exception $e) {
     writeLog("Database initialization failed: " . $e->getMessage(), 'ERROR');
