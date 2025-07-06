@@ -2891,8 +2891,6 @@ class XCStringEditor {
     // Input Modal
     showInputDialog(title, label, defaultValue = '') {
         return new Promise((resolve) => {
-            this.inputTitle.textContent = title;
-            this.inputLabel.textContent = label;
             this.inputModal.style.display = 'block';
             
             const handleSubmit = (e) => {
@@ -2917,6 +2915,14 @@ class XCStringEditor {
             this.inputField = document.getElementById('inputField');
             this.closeInputModal.replaceWith(this.closeInputModal.cloneNode(true));
             this.closeInputModal = document.getElementById('closeInputModal');
+            
+            // Re-assign title and label elements after cloning (they may have been replaced)
+            this.inputTitle = document.getElementById('inputTitle');
+            this.inputLabel = document.getElementById('inputLabel');
+            
+            // Update title and label after re-assignment
+            this.inputTitle.textContent = title;
+            this.inputLabel.textContent = label;
             
             // Set value and focus after re-assignment
             this.inputField.value = defaultValue;
