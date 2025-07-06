@@ -3,10 +3,12 @@
 class Auth {
     private $db;
     private $config;
+    private $fileManager;
     
-    public function __construct($db, $config) {
+    public function __construct($db, $config, $fileManager = null) {
         $this->db = $db;
         $this->config = $config;
+        $this->fileManager = $fileManager;
     }
     
     public function register($email, $name, $password, $inviteToken = null) {
@@ -58,6 +60,16 @@ class Auth {
         // Mark invite as used if provided
         if ($inviteToken) {
             $this->markInviteAsUsed($inviteToken, $userId);
+        }
+        
+        // Convert any pending shares for this email address
+        if ($this->fileManager) {
+            try {
+                $this->fileManager->convertPendingSharesForNewUser($email, $userId);
+            } catch (Exception $e) {
+                // Log error but don't fail registration
+                error_log("Failed to convert pending shares for new user $email: " . $e->getMessage());
+            }
         }
         
         return $userId;
@@ -274,6 +286,16 @@ class Auth {
             
             // Link OAuth2 account
             $this->linkOAuth2Account($userId, $userInfo);
+            
+            // Convert any pending shares for this email address
+            if ($this->fileManager) {
+                try {
+                    $this->fileManager->convertPendingSharesForNewUser($userInfo['email'], $userId);
+                } catch (Exception $e) {
+                    // Log error but don't fail registration
+                    error_log("Failed to convert pending shares for OAuth2 user {$userInfo['email']}: " . $e->getMessage());
+                }
+            }
             
             $this->db->commit();
             

@@ -47,8 +47,8 @@ require_once 'AIService.php';
 // Initialize services
 try {
     $db = new Database($config);
-    $auth = new Auth($db, $config);
     $fileManager = new FileManager($db, $config);
+    $auth = new Auth($db, $config, $fileManager);
     
     // Initialize AI service (defensive initialization)
     try {
@@ -293,7 +293,7 @@ try {
                 if (!isset($input['file_id'], $input['email'])) {
                     throw new Exception('File ID and email are required');
                 }
-                $fileManager->shareFile(
+                $fileManager->shareFileWithEmail(
                     $input['file_id'], 
                     $currentUser['id'], 
                     $input['email'],
@@ -629,7 +629,8 @@ try {
                 }
                 $fileId = $matches[1];
                 $shares = $fileManager->getFileShares($fileId, $currentUser['id']);
-                echo json_encode(['success' => true, 'shares' => $shares]);
+                $pendingShares = $fileManager->getPendingShares($fileId, $currentUser['id']);
+                echo json_encode(['success' => true, 'shares' => $shares, 'pending_shares' => $pendingShares]);
                 
             } elseif (preg_match('/\/files\/(\d+)\/upload-urls/', $requestUri, $matches)) {
                 if (!$currentUser) {
@@ -671,6 +672,15 @@ try {
                 $fileId = $matches[1];
                 $versionNumber = $matches[2];
                 $fileManager->deleteFileVersion($fileId, $versionNumber, $currentUser['id']);
+                echo json_encode(['success' => true]);
+                
+            } elseif (preg_match('/\/files\/(\d+)\/pending-shares\/(\d+)/', $requestUri, $matches)) {
+                if (!$currentUser) {
+                    throw new Exception('Authentication required');
+                }
+                $fileId = $matches[1];
+                $shareId = $matches[2];
+                $fileManager->removePendingShare($fileId, $currentUser['id'], $shareId);
                 echo json_encode(['success' => true]);
                 
             } elseif (preg_match('/\/files\/(\d+)\/shares\/(\d+)/', $requestUri, $matches)) {

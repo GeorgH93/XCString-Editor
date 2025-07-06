@@ -424,6 +424,132 @@ class FileManager {
         );
     }
     
+    public function shareFileWithEmail($fileId, $ownerId, $shareWithEmail, $canEdit = false) {
+        // Verify file ownership
+        $file = $this->db->fetchOne(
+            'SELECT user_id FROM xcstring_files WHERE id = ?',
+            [$fileId]
+        );
+        
+        if (!$file || $file['user_id'] != $ownerId) {
+            throw new Exception('Permission denied');
+        }
+        
+        // Validate email format
+        if (!filter_var($shareWithEmail, FILTER_VALIDATE_EMAIL)) {
+            throw new Exception('Invalid email address');
+        }
+        
+        // Don't allow sharing with self
+        $owner = $this->db->fetchOne(
+            'SELECT email FROM users WHERE id = ?',
+            [$ownerId]
+        );
+        if ($owner && $owner['email'] === $shareWithEmail) {
+            throw new Exception('Cannot share with yourself');
+        }
+        
+        // Check if user already exists
+        $existingUser = $this->db->fetchOne(
+            'SELECT id FROM users WHERE email = ?',
+            [$shareWithEmail]
+        );
+        
+        if ($existingUser) {
+            // User exists, use regular sharing
+            return $this->shareFile($fileId, $ownerId, $shareWithEmail, $canEdit);
+        }
+        
+        // User doesn't exist, create pending share
+        $existing = $this->db->fetchOne(
+            'SELECT id FROM pending_shares WHERE file_id = ? AND shared_with_email = ?',
+            [$fileId, $shareWithEmail]
+        );
+        
+        if ($existing) {
+            $this->db->execute(
+                'UPDATE pending_shares SET can_edit = ? WHERE id = ?',
+                [$canEdit ? 1 : 0, $existing['id']]
+            );
+        } else {
+            $this->db->execute(
+                'INSERT INTO pending_shares (file_id, shared_by_user_id, shared_with_email, can_edit) VALUES (?, ?, ?, ?)',
+                [$fileId, $ownerId, $shareWithEmail, $canEdit ? 1 : 0]
+            );
+        }
+        
+        return true;
+    }
+    
+    public function getPendingShares($fileId, $ownerId) {
+        // Verify file ownership
+        $file = $this->db->fetchOne(
+            'SELECT user_id FROM xcstring_files WHERE id = ?',
+            [$fileId]
+        );
+        
+        if (!$file || $file['user_id'] != $ownerId) {
+            throw new Exception('Permission denied');
+        }
+        
+        return $this->db->fetchAll(
+            'SELECT id, shared_with_email, can_edit, created_at FROM pending_shares 
+             WHERE file_id = ? ORDER BY created_at DESC',
+            [$fileId]
+        );
+    }
+    
+    public function removePendingShare($fileId, $ownerId, $shareId) {
+        // Verify file ownership
+        $file = $this->db->fetchOne(
+            'SELECT user_id FROM xcstring_files WHERE id = ?',
+            [$fileId]
+        );
+        
+        if (!$file || $file['user_id'] != $ownerId) {
+            throw new Exception('Permission denied');
+        }
+        
+        $this->db->execute(
+            'DELETE FROM pending_shares WHERE id = ? AND file_id = ?',
+            [$shareId, $fileId]
+        );
+        
+        return true;
+    }
+    
+    public function convertPendingSharesForNewUser($userEmail, $userId) {
+        try {
+            $this->db->beginTransaction();
+            
+            // Get all pending shares for this email
+            $pendingShares = $this->db->fetchAll(
+                'SELECT file_id, shared_by_user_id, can_edit FROM pending_shares WHERE shared_with_email = ?',
+                [$userEmail]
+            );
+            
+            foreach ($pendingShares as $share) {
+                // Create actual share
+                $this->db->execute(
+                    'INSERT INTO file_shares (file_id, shared_with_user_id, can_edit) VALUES (?, ?, ?)',
+                    [$share['file_id'], $userId, $share['can_edit']]
+                );
+            }
+            
+            // Remove all pending shares for this email
+            $this->db->execute(
+                'DELETE FROM pending_shares WHERE shared_with_email = ?',
+                [$userEmail]
+            );
+            
+            $this->db->commit();
+            return count($pendingShares);
+        } catch (Exception $e) {
+            $this->db->rollback();
+            throw $e;
+        }
+    }
+    
     private function canViewFile($fileId, $userId) {
         $file = $this->db->fetchOne(
             'SELECT user_id, is_public FROM xcstring_files WHERE id = ?',

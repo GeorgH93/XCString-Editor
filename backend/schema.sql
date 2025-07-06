@@ -33,6 +33,19 @@ CREATE TABLE file_shares (
     UNIQUE(file_id, shared_with_user_id)
 );
 
+-- Pending shares table for sharing with users who don't have accounts yet
+CREATE TABLE pending_shares (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    file_id INTEGER NOT NULL,
+    shared_by_user_id INTEGER NOT NULL,
+    shared_with_email VARCHAR(255) NOT NULL,
+    can_edit BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (file_id) REFERENCES xcstring_files(id) ON DELETE CASCADE,
+    FOREIGN KEY (shared_by_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(file_id, shared_with_email)
+);
+
 -- Sessions table for authentication
 CREATE TABLE sessions (
     id VARCHAR(128) PRIMARY KEY,
@@ -80,6 +93,9 @@ CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_xcstring_files_user_id ON xcstring_files(user_id);
 CREATE INDEX idx_file_shares_file_id ON file_shares(file_id);
 CREATE INDEX idx_file_shares_user_id ON file_shares(shared_with_user_id);
+CREATE INDEX idx_pending_shares_file_id ON pending_shares(file_id);
+CREATE INDEX idx_pending_shares_email ON pending_shares(shared_with_email);
+CREATE INDEX idx_pending_shares_created_at ON pending_shares(created_at);
 CREATE INDEX idx_sessions_user_id ON sessions(user_id);
 CREATE INDEX idx_sessions_expires ON sessions(expires_at);
 CREATE INDEX idx_oauth2_accounts_user_id ON oauth2_accounts(user_id);
