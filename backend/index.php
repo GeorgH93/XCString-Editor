@@ -1,7 +1,24 @@
 <?php
-// Prevent warnings from breaking JSON output
-error_reporting(E_ERROR | E_PARSE);
+// Configure error logging for Docker setup
+error_reporting(E_ALL);
 ini_set('display_errors', 0);
+
+// Set custom error log path for Docker container
+$errorLogPath = '/var/www/html/data/error.log';
+if (!is_dir('/var/www/html/data')) {
+    // Fallback to relative path if absolute path doesn't exist
+    $errorLogPath = __DIR__ . '/../data/error.log';
+}
+ini_set('log_errors', 1);
+ini_set('error_log', $errorLogPath);
+
+// Custom logging function for application-specific logs
+function writeLog($message, $level = 'INFO') {
+    global $errorLogPath;
+    $timestamp = date('Y-m-d H:i:s');
+    $logMessage = "[$timestamp] [$level] $message" . PHP_EOL;
+    file_put_contents($errorLogPath, $logMessage, FILE_APPEND | LOCK_EX);
+}
 
 session_start();
 
@@ -64,6 +81,7 @@ try {
         }
     }
 } catch (Exception $e) {
+    writeLog("Database initialization failed: " . $e->getMessage(), 'ERROR');
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Database initialization failed']);
     exit;
@@ -72,6 +90,11 @@ try {
 $requestMethod = $_SERVER['REQUEST_METHOD'];
 $requestUri = $_SERVER['REQUEST_URI'];
 $currentUser = $auth->getCurrentUser();
+
+// Log request for debugging (only for OAuth endpoints to avoid spam)
+if (strpos($requestUri, '/auth/oauth/') !== false) {
+    writeLog("Processing OAuth request: $requestMethod $requestUri", 'INFO');
+}
 
 function parseXcString($content) {
     $json = json_decode($content, true);
@@ -402,7 +425,7 @@ try {
                     header('Location: ' . $authUrl);
                     exit;
                 } catch (Exception $e) {
-                    error_log("OAuth2 redirect error for provider '$provider': " . $e->getMessage());
+                    writeLog("OAuth2 redirect error for provider '$provider': " . $e->getMessage(), 'ERROR');
                     header('Location: ' . $config['app']['base_url'] . '?oauth_error=' . urlencode($e->getMessage()));
                     exit;
                 }
@@ -447,15 +470,15 @@ try {
                     header('Location: ' . $config['app']['base_url'] . '?oauth_success=1');
                     exit;
                 } catch (Exception $e) {
-                    error_log("OAuth2 callback error for provider '$provider': " . $e->getMessage());
-                    error_log("Stack trace: " . $e->getTraceAsString());
-                    error_log("GET parameters: " . print_r($_GET, true));
-                    error_log("OAuth2 enabled: " . ($config['oauth2']['enabled'] ? 'true' : 'false'));
+                    writeLog("OAuth2 callback error for provider '$provider': " . $e->getMessage(), 'ERROR');
+                    writeLog("Stack trace: " . $e->getTraceAsString(), 'DEBUG');
+                    writeLog("GET parameters: " . print_r($_GET, true), 'DEBUG');
+                    writeLog("OAuth2 enabled: " . ($config['oauth2']['enabled'] ? 'true' : 'false'), 'DEBUG');
                     try {
                         $availableProviders = $auth->getOAuth2Providers();
-                        error_log("Available providers: " . print_r(array_keys($availableProviders), true));
+                        writeLog("Available providers: " . print_r(array_keys($availableProviders), true), 'DEBUG');
                     } catch (Exception $providerError) {
-                        error_log("Error getting available providers: " . $providerError->getMessage());
+                        writeLog("Error getting available providers: " . $providerError->getMessage(), 'ERROR');
                     }
                     header('Location: ' . $config['app']['base_url'] . '?oauth_error=' . urlencode($e->getMessage()));
                     exit;
