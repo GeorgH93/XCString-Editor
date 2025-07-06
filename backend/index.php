@@ -486,6 +486,27 @@ try {
                 $valid = $auth->validateInviteToken($token, $email);
                 echo json_encode(['success' => true, 'valid' => $valid]);
                 
+            } elseif (strpos($requestUri, '/debug/invites') !== false) {
+                // Debug endpoint to check invite system status
+                $debugInfo = [
+                    'invite_domains_configured' => !empty($config['registration']['invite_domains']),
+                    'invite_domains' => $config['registration']['invite_domains'],
+                    'registration_enabled' => $config['registration']['enabled'],
+                    'current_user' => $currentUser,
+                    'can_create_invites' => $currentUser ? $auth->canCreateInvites($currentUser['email']) : false
+                ];
+                
+                if ($currentUser) {
+                    $debugInfo['user_domain'] = substr(strrchr($currentUser['email'], '@'), 1);
+                    try {
+                        $debugInfo['existing_invites'] = $auth->getUserInvites($currentUser['id']);
+                    } catch (Exception $e) {
+                        $debugInfo['invites_table_error'] = $e->getMessage();
+                    }
+                }
+                
+                echo json_encode(['success' => true, 'debug' => $debugInfo]);
+                
             } elseif (preg_match('/\/auth\/oauth\/([^\/]+)\/redirect/', $requestUri, $matches)) {
                 // OAuth2 login redirect
                 $provider = $matches[1];
