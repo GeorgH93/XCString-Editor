@@ -61,6 +61,20 @@ CREATE TABLE oauth2_states (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Invites table for invite system
+CREATE TABLE IF NOT EXISTS invites (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token VARCHAR(128) UNIQUE NOT NULL,
+    created_by_user_id INTEGER NOT NULL,
+    email VARCHAR(255), -- Optional: specific email this invite is for
+    used_by_user_id INTEGER, -- User who redeemed the invite
+    expires_at TIMESTAMP NOT NULL,
+    used_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (used_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
 -- Create indexes for better performance
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_xcstring_files_user_id ON xcstring_files(user_id);
@@ -71,3 +85,7 @@ CREATE INDEX idx_sessions_expires ON sessions(expires_at);
 CREATE INDEX idx_oauth2_accounts_user_id ON oauth2_accounts(user_id);
 CREATE INDEX idx_oauth2_accounts_provider ON oauth2_accounts(provider, provider_user_id);
 CREATE INDEX idx_oauth2_states_created ON oauth2_states(created_at);
+CREATE INDEX idx_invites_token ON invites(token);
+CREATE INDEX idx_invites_created_by ON invites(created_by_user_id);
+CREATE INDEX idx_invites_expires ON invites(expires_at);
+CREATE INDEX idx_invites_used_by ON invites(used_by_user_id);

@@ -9,15 +9,20 @@ class Auth {
         $this->config = $config;
     }
     
-    public function register($email, $name, $password) {
+    public function register($email, $name, $password, $inviteToken = null) {
         // Validate email domain if restrictions are set
         if (!$this->isEmailAllowed($email)) {
             throw new Exception('Email domain not allowed');
         }
         
-        // Check if registration is enabled
+        // Check if registration is enabled or if valid invite token provided
         if (!$this->config['registration']['enabled']) {
-            throw new Exception('Registration is disabled');
+            if (!$inviteToken) {
+                throw new Exception('Registration is disabled');
+            }
+            if (!$this->validateInviteToken($inviteToken, $email)) {
+                throw new Exception('Invalid or expired invite token');
+            }
         }
         
         // Validate input
@@ -48,7 +53,14 @@ class Auth {
             [$email, $name, $passwordHash]
         );
         
-        return $this->db->lastInsertId();
+        $userId = $this->db->lastInsertId();
+        
+        // Mark invite as used if provided
+        if ($inviteToken) {
+            $this->markInviteAsUsed($inviteToken, $userId);
+        }
+        
+        return $userId;
     }
     
     public function login($email, $password) {
@@ -380,5 +392,120 @@ class Auth {
             'SELECT provider, created_at FROM oauth2_accounts WHERE user_id = ?',
             [$userId]
         );
+    }
+    
+    // Invite System Methods
+    
+    public function canCreateInvites($userEmail) {
+        $inviteDomains = $this->config['registration']['invite_domains'];
+        
+        // If no invite domains configured, nobody can create invites
+        if (empty($inviteDomains)) {
+            return false;
+        }
+        
+        $domain = substr(strrchr($userEmail, '@'), 1);
+        return in_array($domain, $inviteDomains);
+    }
+    
+    public function createInvite($creatorUserId, $email = null) {
+        // Validate that creator can create invites
+        $creator = $this->db->fetchOne('SELECT email FROM users WHERE id = ?', [$creatorUserId]);
+        if (!$creator) {
+            throw new Exception('Creator user not found');
+        }
+        
+        if (!$this->canCreateInvites($creator['email'])) {
+            throw new Exception('You are not authorized to create invites');
+        }
+        
+        // Generate secure token
+        $token = bin2hex(random_bytes(32));
+        
+        // Set expiration to 1 month from now
+        $expiresAt = date('Y-m-d H:i:s', strtotime('+1 month'));
+        
+        // Insert invite
+        $this->db->execute(
+            'INSERT INTO invites (token, created_by_user_id, email, expires_at) VALUES (?, ?, ?, ?)',
+            [$token, $creatorUserId, $email, $expiresAt]
+        );
+        
+        return [
+            'token' => $token,
+            'expires_at' => $expiresAt,
+            'email' => $email
+        ];
+    }
+    
+    public function validateInviteToken($token, $email = null) {
+        $invite = $this->db->fetchOne(
+            'SELECT id, email, expires_at, used_at FROM invites WHERE token = ?',
+            [$token]
+        );
+        
+        if (!$invite) {
+            return false;
+        }
+        
+        // Check if already used
+        if ($invite['used_at']) {
+            return false;
+        }
+        
+        // Check if expired
+        if (strtotime($invite['expires_at']) < time()) {
+            return false;
+        }
+        
+        // Check if invite is for specific email
+        if ($invite['email'] && $invite['email'] !== $email) {
+            return false;
+        }
+        
+        return true;
+    }
+    
+    public function markInviteAsUsed($token, $userId) {
+        $this->db->execute(
+            'UPDATE invites SET used_by_user_id = ?, used_at = CURRENT_TIMESTAMP WHERE token = ?',
+            [$userId, $token]
+        );
+    }
+    
+    public function getUserInvites($userId) {
+        return $this->db->fetchAll(
+            'SELECT id, token, email, expires_at, used_at, created_at,
+                    (SELECT name FROM users WHERE id = used_by_user_id) as used_by_name
+             FROM invites 
+             WHERE created_by_user_id = ? 
+             ORDER BY created_at DESC',
+            [$userId]
+        );
+    }
+    
+    public function revokeInvite($inviteId, $userId) {
+        $invite = $this->db->fetchOne(
+            'SELECT created_by_user_id, used_at FROM invites WHERE id = ?',
+            [$inviteId]
+        );
+        
+        if (!$invite) {
+            throw new Exception('Invite not found');
+        }
+        
+        if ($invite['created_by_user_id'] != $userId) {
+            throw new Exception('You can only revoke your own invites');
+        }
+        
+        if ($invite['used_at']) {
+            throw new Exception('Cannot revoke an invite that has already been used');
+        }
+        
+        $this->db->execute('DELETE FROM invites WHERE id = ?', [$inviteId]);
+    }
+    
+    public function cleanExpiredInvites() {
+        $this->db->execute('DELETE FROM invites WHERE expires_at < CURRENT_TIMESTAMP');
     }
 }

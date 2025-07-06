@@ -584,8 +584,10 @@ header {
     padding: 30px;
     border-radius: 12px;
     width: 90%;
-    max-width: 400px;
+    max-width: 500px;
     position: relative;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .close {
@@ -969,6 +971,20 @@ header {
 
 .modal-actions .btn {
     min-width: 80px;
+}
+
+/* Confirmation Modal Specific Styling */
+#confirmModal .modal-content {
+    max-width: 600px;
+}
+
+#confirmMessage {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    font-family: inherit;
+    line-height: 1.5;
+    max-width: 100%;
 }
 
 /* Variation Styles */
@@ -1719,6 +1735,105 @@ body {
     }
     
     .url-item-actions {
+        justify-content: flex-end;
+    }
+}
+
+/* Invite Management Styles */
+.invites-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.invite-item {
+    background: #ffffff;
+    border: 1px solid #e5e5e7;
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.invite-info {
+    flex: 1;
+}
+
+.invite-email {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1d1d1f;
+    margin-bottom: 8px;
+}
+
+.invite-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: 0.9rem;
+    color: #86868b;
+    margin-bottom: 8px;
+}
+
+.invite-status {
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.invite-status.status-active {
+    background-color: #d1f2eb;
+    color: #00875a;
+}
+
+.invite-status.status-used {
+    background-color: #e3f2fd;
+    color: #1976d2;
+}
+
+.invite-status.status-expired {
+    background-color: #ffebee;
+    color: #d32f2f;
+}
+
+.invite-url {
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    background-color: #f6f6f6;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    color: #333;
+    word-break: break-all;
+}
+
+.invite-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.no-items {
+    text-align: center;
+    padding: 40px 20px;
+    color: #86868b;
+    font-style: italic;
+}
+
+@media (max-width: 768px) {
+    .invite-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    
+    .invite-meta {
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .invite-actions {
         justify-content: flex-end;
     }
 }

@@ -18,6 +18,7 @@ return [
         'enabled' => filter_var($_ENV['REGISTRATION_ENABLED'] ?? 'true', FILTER_VALIDATE_BOOLEAN),
         'allowed_domains' => !empty($_ENV['REGISTRATION_ALLOWED_DOMAINS']) ? explode(',', $_ENV['REGISTRATION_ALLOWED_DOMAINS']) : [], // Empty array = all domains allowed
         'require_email_verification' => filter_var($_ENV['REGISTRATION_REQUIRE_EMAIL_VERIFICATION'] ?? 'false', FILTER_VALIDATE_BOOLEAN), // Future feature
+        'invite_domains' => !empty($_ENV['REGISTRATION_INVITE_DOMAINS']) ? explode(',', $_ENV['REGISTRATION_INVITE_DOMAINS']) : [], // Email domains that can create invites
     ],
     
     // Session settings

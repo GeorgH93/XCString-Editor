@@ -78,6 +78,9 @@ try {
         $sqlitePath = $config['database']['sqlite_path'];
         if (!file_exists($sqlitePath)) {
             $db->initializeSchema();
+        } else {
+            // Run migrations on existing database
+            $db->runMigrations();
         }
         // Note: Version history table is now created automatically by FileManager
     }
@@ -192,9 +195,10 @@ function generateXcString($data) {
 }
 
 try {
-    // Clean expired sessions periodically
+    // Clean expired sessions and invites periodically
     if (rand(1, 100) === 1) {
         $auth->cleanExpiredSessions();
+        $auth->cleanExpiredInvites();
     }
     
     switch ($requestMethod) {
@@ -206,7 +210,7 @@ try {
                 if (!isset($input['email'], $input['name'], $input['password'])) {
                     throw new Exception('Email, name, and password are required');
                 }
-                $userId = $auth->register($input['email'], $input['name'], $input['password']);
+                $userId = $auth->register($input['email'], $input['name'], $input['password'], $input['invite_token'] ?? null);
                 echo json_encode(['success' => true, 'user_id' => $userId]);
                 
             } elseif (strpos($requestUri, '/auth/login') !== false) {
@@ -219,6 +223,13 @@ try {
             } elseif (strpos($requestUri, '/auth/logout') !== false) {
                 $auth->logout();
                 echo json_encode(['success' => true]);
+                
+            } elseif (strpos($requestUri, '/auth/invites/create') !== false) {
+                if (!$currentUser) {
+                    throw new Exception('Authentication required');
+                }
+                $invite = $auth->createInvite($currentUser['id'], $input['email'] ?? null);
+                echo json_encode(['success' => true, 'invite' => $invite]);
                 
             } elseif (strpos($requestUri, '/files/save') !== false) {
                 if (!$currentUser) {
@@ -448,6 +459,7 @@ try {
         case 'GET':
             if (strpos($requestUri, '/auth/user') !== false) {
                 $oauthProviders = $auth->getOAuth2Providers();
+                $canCreateInvites = $currentUser ? $auth->canCreateInvites($currentUser['email']) : false;
                 echo json_encode([
                     'success' => true, 
                     'user' => $currentUser,
@@ -456,9 +468,23 @@ try {
                         'oauth2_enabled' => $config['oauth2']['enabled'],
                         'oauth2_providers' => array_values($oauthProviders),
                         'ai_enabled' => $aiService->isEnabled(),
-                        'ai_providers' => $aiService->getAvailableProviders()
+                        'ai_providers' => $aiService->getAvailableProviders(),
+                        'can_create_invites' => $canCreateInvites
                     ]
                 ]);
+                
+            } elseif (strpos($requestUri, '/auth/invites/my') !== false) {
+                if (!$currentUser) {
+                    throw new Exception('Authentication required');
+                }
+                $invites = $auth->getUserInvites($currentUser['id']);
+                echo json_encode(['success' => true, 'invites' => $invites]);
+                
+            } elseif (preg_match('/\/auth\/invites\/validate\/([a-f0-9]+)/', $requestUri, $matches)) {
+                $token = $matches[1];
+                $email = $_GET['email'] ?? null;
+                $valid = $auth->validateInviteToken($token, $email);
+                echo json_encode(['success' => true, 'valid' => $valid]);
                 
             } elseif (preg_match('/\/auth\/oauth\/([^\/]+)\/redirect/', $requestUri, $matches)) {
                 // OAuth2 login redirect
@@ -642,6 +668,14 @@ try {
                 $fileId = $matches[1];
                 $urlId = $matches[2];
                 $fileManager->revokePresignedUrl($fileId, $urlId, $currentUser['id']);
+                echo json_encode(['success' => true]);
+                
+            } elseif (preg_match('/\/auth\/invites\/(\d+)/', $requestUri, $matches)) {
+                if (!$currentUser) {
+                    throw new Exception('Authentication required');
+                }
+                $inviteId = $matches[1];
+                $auth->revokeInvite($inviteId, $currentUser['id']);
                 echo json_encode(['success' => true]);
                 
             } elseif (preg_match('/\/files\/(\d+)/', $requestUri, $matches)) {

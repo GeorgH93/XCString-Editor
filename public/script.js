@@ -98,6 +98,12 @@ class XCStringEditor {
         this.closeUploadVersionModal = document.getElementById('closeUploadVersionModal');
         this.uploadVersionForm = document.getElementById('uploadVersionForm');
         this.uploadVersionCancel = document.getElementById('uploadVersionCancel');
+        
+        // Invite elements
+        this.invitesTab = document.getElementById('invitesTab');
+        this.createInviteBtn = document.getElementById('createInviteBtn');
+        this.invitesList = document.getElementById('invitesList');
+        this.inviteTokenField = document.getElementById('inviteTokenField');
         this.versionFile = document.getElementById('versionFile');
         this.versionComment = document.getElementById('versionComment');
         this.uploadFileInfo = document.getElementById('uploadFileInfo');
@@ -279,6 +285,11 @@ class XCStringEditor {
             this.copyToClipboard(this.curlExample.textContent);
         });
         
+        // Invite listeners
+        this.createInviteBtn.addEventListener('click', () => {
+            this.createInvite();
+        });
+        
         // Status bar listeners
         this.statusTopBtn.addEventListener('click', () => {
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -305,6 +316,7 @@ class XCStringEditor {
                 this.updateAuthUI();
                 this.updateOAuth2UI();
                 this.updateRegistrationUI();
+                this.updateInviteUI();
                 this.updateAIUI();
                 if (this.currentUser) {
                     this.showFileManagement();
@@ -390,8 +402,22 @@ class XCStringEditor {
             const registerParagraph = showRegisterLink.closest('p');
             if (this.config?.registration_enabled) {
                 if (registerParagraph) registerParagraph.style.display = 'block';
+                // Hide invite token field when registration is enabled
+                if (this.inviteTokenField) this.inviteTokenField.style.display = 'none';
             } else {
-                if (registerParagraph) registerParagraph.style.display = 'none';
+                if (registerParagraph) registerParagraph.style.display = 'block';
+                // Show invite token field when registration is disabled
+                if (this.inviteTokenField) this.inviteTokenField.style.display = 'block';
+            }
+        }
+        
+        // Check URL parameters for invite token
+        const urlParams = new URLSearchParams(window.location.search);
+        const inviteToken = urlParams.get('invite');
+        if (inviteToken) {
+            const inviteTokenInput = document.getElementById('registerInviteToken');
+            if (inviteTokenInput) {
+                inviteTokenInput.value = inviteToken;
             }
         }
     }
@@ -498,12 +524,18 @@ class XCStringEditor {
         const name = document.getElementById('registerName').value;
         const email = document.getElementById('registerEmail').value;
         const password = document.getElementById('registerPassword').value;
+        const inviteToken = document.getElementById('registerInviteToken').value;
+        
+        const payload = { name, email, password };
+        if (inviteToken) {
+            payload.invite_token = inviteToken;
+        }
         
         try {
             const response = await fetch('/backend/index.php/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, email, password })
+                body: JSON.stringify(payload)
             });
             
             const result = await response.json();
@@ -568,6 +600,9 @@ class XCStringEditor {
                 break;
             case 'public-files':
                 this.loadPublicFiles();
+                break;
+            case 'invites':
+                this.loadUserInvites();
                 break;
         }
     }
@@ -3736,6 +3771,185 @@ class XCStringEditor {
         
         console.log('=== END DEBUG ===');
         return this.data;
+    }
+
+    // Invite management methods
+    updateInviteUI() {
+        if (this.config?.can_create_invites && this.currentUser) {
+            this.invitesTab.style.display = 'block';
+        } else {
+            this.invitesTab.style.display = 'none';
+        }
+    }
+
+    async createInvite() {
+        try {
+            const email = await this.showInputDialog(
+                'Create Invite', 
+                'Email (optional - leave empty for general invite):', 
+                ''
+            );
+            
+            if (email === null) return;
+            
+            const payload = {};
+            if (email) {
+                payload.email = email;
+            }
+            
+            const response = await fetch('/backend/index.php/auth/invites/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                this.showNotification('Invite created successfully!', 'success');
+                this.loadUserInvites();
+                
+                const baseUrl = window.location.origin + window.location.pathname;
+                const inviteUrl = `${baseUrl}?invite=${result.invite.token}`;
+                
+                this.showInviteCreatedDialog(inviteUrl, result.invite.expires_at);
+            } else {
+                this.showNotification('Failed to create invite: ' + result.error, 'error');
+            }
+        } catch (error) {
+            this.showNotification('Error creating invite: ' + error.message, 'error');
+        }
+    }
+
+    async loadUserInvites() {
+        if (!this.currentUser) return;
+        
+        try {
+            const response = await fetch('/backend/index.php/auth/invites/my');
+            const result = await response.json();
+            
+            if (result.success) {
+                this.renderInvitesList(result.invites);
+            } else {
+                this.showNotification('Failed to load invites: ' + result.error, 'error');
+            }
+        } catch (error) {
+            this.showNotification('Error loading invites: ' + error.message, 'error');
+        }
+    }
+
+    renderInvitesList(invites) {
+        if (!invites || invites.length === 0) {
+            this.invitesList.innerHTML = '<p class="no-items">No invites created yet.</p>';
+            return;
+        }
+
+        const invitesHtml = invites.map(invite => {
+            const isExpired = new Date(invite.expires_at) < new Date();
+            const isUsed = invite.used_at;
+            let statusText = 'Active';
+            let statusClass = 'status-active';
+            
+            if (isUsed) {
+                statusText = `Used by ${invite.used_by_name}`;
+                statusClass = 'status-used';
+            } else if (isExpired) {
+                statusText = 'Expired';
+                statusClass = 'status-expired';
+            }
+            
+            const baseUrl = window.location.origin + window.location.pathname;
+            const inviteUrl = `${baseUrl}?invite=${invite.token}`;
+            
+            return `
+                <div class="invite-item">
+                    <div class="invite-info">
+                        <div class="invite-email">${invite.email || 'General invite'}</div>
+                        <div class="invite-meta">
+                            <span class="invite-created">Created: ${new Date(invite.created_at).toLocaleDateString()}</span>
+                            <span class="invite-expires">Expires: ${new Date(invite.expires_at).toLocaleDateString()}</span>
+                            <span class="invite-status ${statusClass}">${statusText}</span>
+                        </div>
+                        ${!isUsed && !isExpired ? `<div class="invite-url">${inviteUrl}</div>` : ''}
+                    </div>
+                    <div class="invite-actions">
+                        ${!isUsed && !isExpired ? `
+                            <button class="btn btn-sm btn-secondary" onclick="editor.copyToClipboard('${inviteUrl}')">Copy Link</button>
+                            <button class="btn btn-sm btn-danger" onclick="editor.revokeInvite(${invite.id})">Revoke</button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        this.invitesList.innerHTML = invitesHtml;
+    }
+
+    async revokeInvite(inviteId) {
+        try {
+            const confirmed = await this.showConfirmDialog(
+                'Revoke Invite',
+                'Are you sure you want to revoke this invite? This action cannot be undone.'
+            );
+            
+            if (!confirmed) return;
+            
+            const response = await fetch(`/backend/index.php/auth/invites/${inviteId}`, {
+                method: 'DELETE'
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                this.showNotification('Invite revoked successfully', 'success');
+                this.loadUserInvites();
+            } else {
+                this.showNotification('Failed to revoke invite: ' + result.error, 'error');
+            }
+        } catch (error) {
+            this.showNotification('Error revoking invite: ' + error.message, 'error');
+        }
+    }
+
+    copyToClipboard(text) {
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).then(() => {
+                this.showNotification('Copied to clipboard!', 'success');
+            }).catch(() => {
+                this.fallbackCopyToClipboard(text);
+            });
+        } else {
+            this.fallbackCopyToClipboard(text);
+        }
+    }
+
+    fallbackCopyToClipboard(text) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+            document.execCommand('copy');
+            this.showNotification('Copied to clipboard!', 'success');
+        } catch (err) {
+            this.showNotification('Failed to copy to clipboard', 'error');
+        }
+        
+        document.body.removeChild(textArea);
+    }
+
+    async showInviteCreatedDialog(inviteUrl, expiresAt) {
+        const confirmed = await this.showConfirmDialog(
+            'Invite Created Successfully',
+            `Your invite link has been created!\n\nExpires: ${new Date(expiresAt).toLocaleDateString()}\n\n${inviteUrl}\n\nClick OK to copy the link to your clipboard.`
+        );
+        
+        if (confirmed) {
+            this.copyToClipboard(inviteUrl);
+        }
     }
 }
 

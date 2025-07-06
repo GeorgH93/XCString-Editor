@@ -180,16 +180,23 @@ class Database {
                 error_log("Migration SQL: " . substr($sql, 0, 200) . "...");
                 
                 // Split into statements and execute in order
-                $statements = array_filter(array_map('trim', explode(';', $sql)));
+                $statements = $this->parseSqlStatements($sql);
                 
                 foreach ($statements as $statement) {
-                    if (!empty($statement) && !$this->isComment($statement)) {
+                    if (!empty($statement)) {
                         error_log("Executing statement: " . substr($statement, 0, 100) . "...");
                         try {
                             $this->pdo->exec($statement);
                         } catch (Exception $e) {
                             error_log("Statement failed: " . $e->getMessage());
                             error_log("Full statement: " . $statement);
+                            
+                            // Check if this is a non-fatal error that we can ignore
+                            if ($this->isIgnorableError($e, $statement)) {
+                                error_log("Ignoring non-fatal error: " . $e->getMessage());
+                                continue;
+                            }
+                            
                             throw $e;
                         }
                     }
@@ -279,6 +286,87 @@ class Database {
     
     private function isComment($statement) {
         return strpos(trim($statement), '--') === 0;
+    }
+    
+    private function parseSqlStatements($sql) {
+        $statements = [];
+        $lines = explode("\n", $sql);
+        $currentStatement = '';
+        
+        foreach ($lines as $line) {
+            $trimmedLine = trim($line);
+            
+            // Skip empty lines and comment-only lines
+            if (empty($trimmedLine) || $this->isComment($trimmedLine)) {
+                continue;
+            }
+            
+            $currentStatement .= $line . "\n";
+            
+            // If line ends with semicolon, we have a complete statement
+            if (substr($trimmedLine, -1) === ';') {
+                $statements[] = trim($currentStatement);
+                $currentStatement = '';
+            }
+        }
+        
+        // Add any remaining statement (in case file doesn't end with semicolon)
+        if (!empty(trim($currentStatement))) {
+            $statements[] = trim($currentStatement);
+        }
+        
+        return array_filter($statements);
+    }
+    
+    private function isIgnorableError($exception, $statement) {
+        $message = $exception->getMessage();
+        $statementUpper = strtoupper(trim($statement));
+        
+        // Handle different database drivers' error messages for common ignorable errors
+        switch ($this->config['database']['driver']) {
+            case 'sqlite':
+                // Table already exists
+                if (strpos($message, 'table') !== false && strpos($message, 'already exists') !== false) {
+                    return strpos($statementUpper, 'CREATE TABLE') === 0;
+                }
+                // Index already exists
+                if (strpos($message, 'index') !== false && strpos($message, 'already exists') !== false) {
+                    return strpos($statementUpper, 'CREATE INDEX') === 0;
+                }
+                // Column already exists (when adding columns)
+                if (strpos($message, 'duplicate column name') !== false) {
+                    return strpos($statementUpper, 'ALTER TABLE') === 0 && strpos($statementUpper, 'ADD COLUMN') !== false;
+                }
+                break;
+                
+            case 'mysql':
+                // Table already exists
+                if (strpos($message, 'Table') !== false && strpos($message, 'already exists') !== false) {
+                    return strpos($statementUpper, 'CREATE TABLE') === 0;
+                }
+                // Index already exists
+                if (strpos($message, 'Duplicate key name') !== false) {
+                    return strpos($statementUpper, 'CREATE INDEX') === 0;
+                }
+                // Column already exists
+                if (strpos($message, 'Duplicate column name') !== false) {
+                    return strpos($statementUpper, 'ALTER TABLE') === 0 && strpos($statementUpper, 'ADD COLUMN') !== false;
+                }
+                break;
+                
+            case 'postgres':
+                // Table already exists
+                if (strpos($message, 'relation') !== false && strpos($message, 'already exists') !== false) {
+                    return strpos($statementUpper, 'CREATE TABLE') === 0 || strpos($statementUpper, 'CREATE INDEX') === 0;
+                }
+                // Column already exists
+                if (strpos($message, 'column') !== false && strpos($message, 'already exists') !== false) {
+                    return strpos($statementUpper, 'ALTER TABLE') === 0 && strpos($statementUpper, 'ADD COLUMN') !== false;
+                }
+                break;
+        }
+        
+        return false;
     }
     
     private function adaptSchemaForMySQL($schema) {

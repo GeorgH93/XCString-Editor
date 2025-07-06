@@ -70,6 +70,10 @@
                             <label>Password:</label>
                             <input type="password" id="registerPassword" required minlength="6">
                         </div>
+                        <div class="form-group" id="inviteTokenField" style="display: none;">
+                            <label>Invite Token:</label>
+                            <input type="text" id="registerInviteToken" placeholder="Enter invite token (required when registration is disabled)">
+                        </div>
                         
                         <div class="button-spacing"></div>
                         <button type="submit" class="btn btn-primary">Register</button>
@@ -96,6 +100,7 @@
                     <button class="tab-button active" data-tab="my-files">My Files</button>
                     <button class="tab-button" data-tab="shared-files">Shared</button>
                     <button class="tab-button" data-tab="public-files">Public</button>
+                    <button class="tab-button" data-tab="invites" id="invitesTab" style="display: none;">Invites</button>
                 </div>
                 
                 <div class="tab-content">
@@ -115,6 +120,14 @@
                     <div id="public-files" class="tab-pane">
                         <h3>Public Files</h3>
                         <div id="publicFilesList" class="files-list"></div>
+                    </div>
+                    
+                    <div id="invites" class="tab-pane">
+                        <div class="section-header">
+                            <h3>Invitation Management</h3>
+                            <button id="createInviteBtn" class="btn btn-primary">Create Invite</button>
+                        </div>
+                        <div id="invitesList" class="invites-list"></div>
                     </div>
                 </div>
             </section>
