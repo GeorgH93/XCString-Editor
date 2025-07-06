@@ -170,6 +170,7 @@
                         <button id="addStringBtn" class="btn btn-primary">Add String</button>
                         <button id="saveBtn" class="btn btn-secondary" style="display: none;">Save</button>
                         <button id="shareBtn" class="btn btn-secondary" style="display: none;">Share</button>
+                        <button id="manageSharesBtn" class="btn btn-secondary" style="display: none;">Manage Shares</button>
                         <button id="versionHistoryBtn" class="btn btn-secondary" style="display: none;">Version History</button>
                         <button id="exportBtn" class="btn btn-secondary">Export</button>
                     </div>
@@ -396,6 +397,55 @@
             
             <div class="modal-actions">
                 <button type="button" id="closePresignedUrl" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manage Shares Modal -->
+    <div id="manageSharesModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" id="closeManageSharesModal">&times;</span>
+            <h3 id="manageSharesTitle">Manage File Shares</h3>
+            
+            <div class="shares-container">
+                <!-- Current Shares Section -->
+                <div class="shares-section">
+                    <h4>Current Shares</h4>
+                    <div id="currentSharesList" class="shares-list">
+                        <!-- Current shares will be populated here -->
+                    </div>
+                </div>
+                
+                <!-- Pending Shares Section -->
+                <div class="shares-section">
+                    <h4>Pending Shares</h4>
+                    <p class="shares-description">These people will get access when they create an account</p>
+                    <div id="pendingSharesList" class="shares-list">
+                        <!-- Pending shares will be populated here -->
+                    </div>
+                </div>
+                
+                <!-- Add New Share Section -->
+                <div class="shares-section">
+                    <h4>Share with New Person</h4>
+                    <form id="addShareForm" class="add-share-form">
+                        <div class="form-group">
+                            <label for="shareEmail">Email address:</label>
+                            <input type="email" id="shareEmail" placeholder="Enter email address" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="shareCanEdit">
+                                Allow editing
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add Share</button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="modal-actions">
+                <button type="button" id="closeManageShares" class="btn btn-secondary">Close</button>
             </div>
         </div>
     </div>

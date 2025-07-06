@@ -99,6 +99,18 @@ class XCStringEditor {
         this.uploadVersionForm = document.getElementById('uploadVersionForm');
         this.uploadVersionCancel = document.getElementById('uploadVersionCancel');
         
+        // Manage shares elements
+        this.manageSharesBtn = document.getElementById('manageSharesBtn');
+        this.manageSharesModal = document.getElementById('manageSharesModal');
+        this.closeManageSharesModal = document.getElementById('closeManageSharesModal');
+        this.closeManageShares = document.getElementById('closeManageShares');
+        this.manageSharesTitle = document.getElementById('manageSharesTitle');
+        this.currentSharesList = document.getElementById('currentSharesList');
+        this.pendingSharesList = document.getElementById('pendingSharesList');
+        this.addShareForm = document.getElementById('addShareForm');
+        this.shareEmail = document.getElementById('shareEmail');
+        this.shareCanEdit = document.getElementById('shareCanEdit');
+        
         // Invite elements
         this.invitesTab = document.getElementById('invitesTab');
         this.createInviteBtn = document.getElementById('createInviteBtn');
@@ -252,6 +264,30 @@ class XCStringEditor {
         
         this.versionFile.addEventListener('change', (e) => {
             this.validateUploadFile(e.target.files[0]);
+        });
+        
+        // Manage shares listeners
+        this.manageSharesBtn.addEventListener('click', () => {
+            this.showManageSharesModal();
+        });
+        
+        this.closeManageSharesModal.addEventListener('click', () => {
+            this.hideManageSharesModal();
+        });
+        
+        this.closeManageShares.addEventListener('click', () => {
+            this.hideManageSharesModal();
+        });
+        
+        this.manageSharesModal.addEventListener('click', (e) => {
+            if (e.target === this.manageSharesModal) {
+                this.hideManageSharesModal();
+            }
+        });
+        
+        this.addShareForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.addNewShare();
         });
         
         // Presigned URL listeners
@@ -700,6 +736,7 @@ class XCStringEditor {
                 // Show appropriate buttons
                 this.saveBtn.style.display = this.currentUser ? 'inline-block' : 'none';
                 this.shareBtn.style.display = this.currentUser ? 'inline-block' : 'none';
+                this.manageSharesBtn.style.display = this.currentUser ? 'inline-block' : 'none';
                 this.versionHistoryBtn.style.display = this.currentUser && this.currentFileId ? 'inline-block' : 'none';
                 
                 this.renderEditor();
@@ -750,6 +787,7 @@ class XCStringEditor {
         
         this.saveBtn.style.display = 'inline-block';
         this.shareBtn.style.display = 'none';
+        this.manageSharesBtn.style.display = 'none';
         this.versionHistoryBtn.style.display = 'none';
         
         this.renderEditor();
@@ -809,6 +847,7 @@ class XCStringEditor {
                 this.isModified = false;
                 this.fileInfo.textContent = 'Saved';
                 this.shareBtn.style.display = 'inline-block';
+                this.manageSharesBtn.style.display = 'inline-block';
                 this.loadUserFiles(); // Refresh file list
             } else {
                 this.showNotification('Failed to save file: ' + result.error, 'error');
@@ -841,6 +880,7 @@ class XCStringEditor {
                 this.fileInfo.textContent = 'Saved';
                 this.saveBtn.style.display = 'inline-block';
                 this.shareBtn.style.display = 'inline-block';
+                this.manageSharesBtn.style.display = 'inline-block';
                 this.loadUserFiles(); // Refresh file list
                 this.showNotification('File saved successfully!', 'success');
             } else {
@@ -848,12 +888,14 @@ class XCStringEditor {
                 this.fileInfo.textContent = 'Uploaded file (not saved)';
                 this.saveBtn.style.display = 'inline-block';
                 this.shareBtn.style.display = 'none';
+                this.manageSharesBtn.style.display = 'none';
             }
         } catch (error) {
             this.showNotification('Error saving file: ' + error.message, 'error');
             this.fileInfo.textContent = 'Uploaded file (not saved)';
             this.saveBtn.style.display = 'inline-block';
             this.shareBtn.style.display = 'none';
+            this.manageSharesBtn.style.display = 'none';
         }
     }
 
@@ -948,11 +990,13 @@ class XCStringEditor {
                         this.fileInfo.textContent = 'Uploaded file (not saved)';
                         this.saveBtn.style.display = 'inline-block';
                         this.shareBtn.style.display = 'none';
+                        this.manageSharesBtn.style.display = 'none';
                     }
                 } else {
                     this.fileInfo.textContent = 'Uploaded file (not saved)';
                     this.saveBtn.style.display = 'none';
                     this.shareBtn.style.display = 'none';
+                    this.manageSharesBtn.style.display = 'none';
                 }
                 
                 this.renderEditor();
@@ -3282,6 +3326,145 @@ class XCStringEditor {
     
     hideVersionHistory() {
         this.versionHistoryModal.style.display = 'none';
+    }
+    
+    async showManageSharesModal() {
+        if (!this.currentFileId) {
+            this.showNotification('No file loaded', 'error');
+            return;
+        }
+        
+        try {
+            // Load current shares and pending shares
+            const response = await fetch(`/backend/index.php/files/${this.currentFileId}/shares`);
+            const result = await response.json();
+            
+            if (!result.success) {
+                this.showNotification('Failed to load shares: ' + (result.error || 'Unknown error'), 'error');
+                return;
+            }
+            
+            // Update modal title
+            this.manageSharesTitle.textContent = `Manage Shares - ${this.editorTitle.textContent}`;
+            
+            // Render current shares
+            this.renderSharesList(result.shares, this.currentSharesList, 'current');
+            
+            // Render pending shares
+            this.renderSharesList(result.pending_shares, this.pendingSharesList, 'pending');
+            
+            // Clear the add share form
+            this.shareEmail.value = '';
+            this.shareCanEdit.checked = false;
+            
+            // Show modal
+            this.manageSharesModal.style.display = 'block';
+            
+        } catch (error) {
+            this.showNotification('Error loading shares: ' + error.message, 'error');
+        }
+    }
+    
+    hideManageSharesModal() {
+        this.manageSharesModal.style.display = 'none';
+    }
+    
+    renderSharesList(shares, container, type) {
+        if (!shares || shares.length === 0) {
+            container.innerHTML = '<div class="empty-state">No shares</div>';
+            return;
+        }
+        
+        container.innerHTML = shares.map(share => {
+            const isCurrentShare = type === 'current';
+            const email = isCurrentShare ? share.email : share.shared_with_email;
+            const canEdit = share.can_edit;
+            const createdAt = new Date(share.created_at).toLocaleDateString();
+            const userName = isCurrentShare ? share.name : null;
+            
+            return `
+                <div class="share-item">
+                    <div class="share-info">
+                        <div class="share-email">${email}</div>
+                        <div class="share-details">
+                            ${userName ? `${userName} • ` : ''}Added ${createdAt}
+                        </div>
+                    </div>
+                    <div class="share-permissions">
+                        <span class="permission-badge ${canEdit ? 'permission-edit' : 'permission-view'}">
+                            ${canEdit ? 'Edit' : 'View'}
+                        </span>
+                    </div>
+                    <div class="share-actions">
+                        <button class="btn btn-danger btn-sm" onclick="editor.removeShare('${type}', ${share.id})">
+                            Remove
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    async removeShare(type, shareId) {
+        if (!confirm('Are you sure you want to remove this share?')) {
+            return;
+        }
+        
+        try {
+            const endpoint = type === 'current' 
+                ? `/backend/index.php/files/${this.currentFileId}/shares/${shareId}`
+                : `/backend/index.php/files/${this.currentFileId}/pending-shares/${shareId}`;
+                
+            const response = await fetch(endpoint, {
+                method: 'DELETE'
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                this.showNotification('Share removed successfully', 'success');
+                // Refresh the shares modal
+                this.showManageSharesModal();
+            } else {
+                this.showNotification('Failed to remove share: ' + result.error, 'error');
+            }
+        } catch (error) {
+            this.showNotification('Error removing share: ' + error.message, 'error');
+        }
+    }
+    
+    async addNewShare() {
+        const email = this.shareEmail.value.trim();
+        const canEdit = this.shareCanEdit.checked;
+        
+        if (!email) {
+            this.showNotification('Please enter an email address', 'error');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/backend/index.php/files/share', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    file_id: this.currentFileId,
+                    email: email,
+                    can_edit: canEdit
+                })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                this.showNotification('File shared successfully!', 'success');
+                // Clear form and refresh shares
+                this.shareEmail.value = '';
+                this.shareCanEdit.checked = false;
+                this.showManageSharesModal();
+            } else {
+                this.showNotification('Failed to share file: ' + result.error, 'error');
+            }
+        } catch (error) {
+            this.showNotification('Error sharing file: ' + error.message, 'error');
+        }
     }
     
     showUploadVersionModal() {
