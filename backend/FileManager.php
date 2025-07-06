@@ -10,6 +10,9 @@ class FileManager {
         
         // Ensure version history table exists
         $this->ensureVersionHistoryTable();
+        
+        // Ensure presigned URLs table exists
+        $this->ensurePresignedUrlsTable();
     }
     
     private function ensureVersionHistoryTable() {

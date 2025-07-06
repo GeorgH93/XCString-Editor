@@ -199,7 +199,8 @@ try {
     
     switch ($requestMethod) {
         case 'POST':
-            $input = json_decode(file_get_contents('php://input'), true);
+            $rawInput = file_get_contents('php://input');
+            $input = json_decode($rawInput, true);
             
             if (strpos($requestUri, '/auth/register') !== false) {
                 if (!isset($input['email'], $input['name'], $input['password'])) {
@@ -297,7 +298,7 @@ try {
                 $parsed = fixDataForJavaScript($parsed);
                 echo json_encode(['success' => true, 'data' => $parsed]);
                 
-            } elseif (strpos($requestUri, '/generate') !== false) {
+            } elseif (preg_match('/\/generate$/', $requestUri)) {
                 if (!isset($input['data'])) {
                     throw new Exception('Data is required');
                 }
