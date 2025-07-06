@@ -9,7 +9,7 @@ class FileManager {
         $this->config = $config;
     }
     
-    public function saveFile($userId, $name, $content, $isPublic = false) {
+    public function saveFile($userId, $name, $content, $isPublic = false, $comment = null) {
         // Validate file size
         if (strlen($content) > $this->config['files']['max_file_size']) {
             throw new Exception('File size exceeds maximum allowed size');
@@ -31,16 +31,30 @@ class FileManager {
             throw new Exception('Invalid xcstring content');
         }
         
-        // Insert file
-        $this->db->execute(
-            'INSERT INTO xcstring_files (user_id, name, content, is_public, updated_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)',
-            [$userId, $name, $content, $isPublic ? 1 : 0]
-        );
-        
-        return $this->db->lastInsertId();
+        try {
+            $this->db->beginTransaction();
+            
+            // Insert file
+            $this->db->execute(
+                'INSERT INTO xcstring_files (user_id, name, content, is_public, updated_at) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)',
+                [$userId, $name, $content, $isPublic ? 1 : 0]
+            );
+            
+            $fileId = $this->db->lastInsertId();
+            
+            // Create initial version
+            $this->createFileVersion($fileId, $content, $userId, $comment ?: 'Initial version');
+            
+            $this->db->commit();
+            return $fileId;
+            
+        } catch (Exception $e) {
+            $this->db->rollback();
+            throw $e;
+        }
     }
     
-    public function updateFile($fileId, $userId, $content) {
+    public function updateFile($fileId, $userId, $content, $comment = null) {
         // Check if user owns the file or has edit permission
         if (!$this->canEditFile($fileId, $userId)) {
             throw new Exception('Permission denied');
@@ -57,10 +71,39 @@ class FileManager {
             throw new Exception('Invalid xcstring content');
         }
         
-        $this->db->execute(
-            'UPDATE xcstring_files SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-            [$content, $fileId]
+        // Get current content to check if it has actually changed
+        $currentFile = $this->db->fetchOne(
+            'SELECT content FROM xcstring_files WHERE id = ?',
+            [$fileId]
         );
+        
+        if (!$currentFile) {
+            throw new Exception('File not found');
+        }
+        
+        // Only update and create version if content has changed
+        $currentHash = hash('sha256', $currentFile['content']);
+        $newHash = hash('sha256', $content);
+        
+        if ($currentHash !== $newHash) {
+            try {
+                $this->db->beginTransaction();
+                
+                // Update file
+                $this->db->execute(
+                    'UPDATE xcstring_files SET content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+                    [$content, $fileId]
+                );
+                
+                // Create new version
+                $this->createFileVersion($fileId, $content, $userId, $comment);
+                
+                $this->db->commit();
+            } catch (Exception $e) {
+                $this->db->rollback();
+                throw $e;
+            }
+        }
         
         return true;
     }
@@ -274,5 +317,145 @@ class FileManager {
         );
         
         return $share && $share['can_edit'];
+    }
+    
+    // Version History Methods
+    
+    private function createFileVersion($fileId, $content, $userId, $comment = null) {
+        // Get the next version number
+        $latestVersion = $this->db->fetchOne(
+            'SELECT MAX(version_number) as max_version FROM file_versions WHERE file_id = ?',
+            [$fileId]
+        );
+        
+        $versionNumber = ($latestVersion['max_version'] ?? 0) + 1;
+        $contentHash = hash('sha256', $content);
+        $sizeBytes = strlen($content);
+        
+        // Check if this exact content already exists (deduplication)
+        $existingVersion = $this->db->fetchOne(
+            'SELECT id FROM file_versions WHERE file_id = ? AND content_hash = ?',
+            [$fileId, $contentHash]
+        );
+        
+        if (!$existingVersion) {
+            $this->db->execute(
+                'INSERT INTO file_versions (file_id, version_number, content, comment, created_by_user_id, content_hash, size_bytes) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?)',
+                [$fileId, $versionNumber, $content, $comment, $userId, $contentHash, $sizeBytes]
+            );
+        }
+        
+        return $versionNumber;
+    }
+    
+    public function getFileVersions($fileId, $userId = null) {
+        // Check if user can view this file
+        if (!$this->canViewFile($fileId, $userId)) {
+            throw new Exception('Permission denied');
+        }
+        
+        return $this->db->fetchAll(
+            'SELECT fv.id, fv.version_number, fv.comment, fv.created_at, fv.size_bytes,
+                    u.name as created_by_name, u.email as created_by_email
+             FROM file_versions fv
+             JOIN users u ON fv.created_by_user_id = u.id
+             WHERE fv.file_id = ?
+             ORDER BY fv.version_number DESC',
+            [$fileId]
+        );
+    }
+    
+    public function getFileVersion($fileId, $versionNumber, $userId = null) {
+        // Check if user can view this file
+        if (!$this->canViewFile($fileId, $userId)) {
+            throw new Exception('Permission denied');
+        }
+        
+        $version = $this->db->fetchOne(
+            'SELECT fv.*, u.name as created_by_name, u.email as created_by_email
+             FROM file_versions fv
+             JOIN users u ON fv.created_by_user_id = u.id
+             WHERE fv.file_id = ? AND fv.version_number = ?',
+            [$fileId, $versionNumber]
+        );
+        
+        if (!$version) {
+            throw new Exception('Version not found');
+        }
+        
+        return $version;
+    }
+    
+    public function revertToVersion($fileId, $versionNumber, $userId, $comment = null) {
+        // Check if user can edit this file
+        if (!$this->canEditFile($fileId, $userId)) {
+            throw new Exception('Permission denied');
+        }
+        
+        // Get the version content
+        $version = $this->getFileVersion($fileId, $versionNumber, $userId);
+        
+        // Update file with version content and create new version
+        $revertComment = $comment ?: "Reverted to version $versionNumber";
+        return $this->updateFile($fileId, $userId, $version['content'], $revertComment);
+    }
+    
+    public function deleteFileVersion($fileId, $versionNumber, $userId) {
+        // Check if user owns the file
+        $file = $this->db->fetchOne(
+            'SELECT user_id FROM xcstring_files WHERE id = ?',
+            [$fileId]
+        );
+        
+        if (!$file || $file['user_id'] != $userId) {
+            throw new Exception('Permission denied');
+        }
+        
+        // Don't allow deletion of the latest version
+        $latestVersion = $this->db->fetchOne(
+            'SELECT MAX(version_number) as max_version FROM file_versions WHERE file_id = ?',
+            [$fileId]
+        );
+        
+        if ($versionNumber == $latestVersion['max_version']) {
+            throw new Exception('Cannot delete the latest version');
+        }
+        
+        // Don't allow deletion if only one version exists
+        $versionCount = $this->db->fetchOne(
+            'SELECT COUNT(*) as count FROM file_versions WHERE file_id = ?',
+            [$fileId]
+        );
+        
+        if ($versionCount['count'] <= 1) {
+            throw new Exception('Cannot delete the only version');
+        }
+        
+        $this->db->execute(
+            'DELETE FROM file_versions WHERE file_id = ? AND version_number = ?',
+            [$fileId, $versionNumber]
+        );
+        
+        return true;
+    }
+    
+    public function getFileVersionStats($fileId, $userId = null) {
+        // Check if user can view this file
+        if (!$this->canViewFile($fileId, $userId)) {
+            throw new Exception('Permission denied');
+        }
+        
+        return $this->db->fetchOne(
+            'SELECT 
+                COUNT(*) as total_versions,
+                MIN(created_at) as first_version_date,
+                MAX(created_at) as latest_version_date,
+                SUM(size_bytes) as total_size_bytes,
+                COUNT(DISTINCT created_by_user_id) as unique_contributors
+             FROM file_versions 
+             WHERE file_id = ?',
+            [$fileId]
+        );
     }
 }

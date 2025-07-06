@@ -49,5 +49,16 @@ if (!$specificTest || strpos('FileManager', $specificTest) !== false) {
     }
 }
 
+if (!$specificTest || strpos('FileVersionHistory', $specificTest) !== false) {
+    // Use mock tests if SQLite is not available
+    if (extension_loaded('pdo_sqlite')) {
+        require_once __DIR__ . '/FileVersionHistoryTest.php';
+        $runner->addTest(new FileVersionHistoryTest());
+    } else {
+        require_once __DIR__ . '/FileVersionHistoryMockTest.php';
+        $runner->addTest(new FileVersionHistoryMockTest());
+    }
+}
+
 // Run the tests
 $runner->run();

@@ -229,7 +229,8 @@ try {
                     $currentUser['id'], 
                     $input['name'], 
                     $input['content'],
-                    $input['is_public'] ?? false
+                    $input['is_public'] ?? false,
+                    $input['comment'] ?? null
                 );
                 echo json_encode(['success' => true, 'file_id' => $fileId]);
                 
@@ -240,7 +241,12 @@ try {
                 if (!isset($input['file_id'], $input['content'])) {
                     throw new Exception('File ID and content are required');
                 }
-                $fileManager->updateFile($input['file_id'], $currentUser['id'], $input['content']);
+                $fileManager->updateFile(
+                    $input['file_id'], 
+                    $currentUser['id'], 
+                    $input['content'],
+                    $input['comment'] ?? null
+                );
                 echo json_encode(['success' => true]);
                 
             } elseif (strpos($requestUri, '/files/share') !== false) {
@@ -382,6 +388,22 @@ try {
                 
                 echo json_encode(['success' => true, 'reviews' => $reviews]);
                 
+            } elseif (preg_match('/\/files\/(\d+)\/revert/', $requestUri, $matches)) {
+                if (!$currentUser) {
+                    throw new Exception('Authentication required');
+                }
+                if (!isset($input['version_number'])) {
+                    throw new Exception('Version number is required');
+                }
+                $fileId = $matches[1];
+                $fileManager->revertToVersion(
+                    $fileId, 
+                    $input['version_number'], 
+                    $currentUser['id'],
+                    $input['comment'] ?? null
+                );
+                echo json_encode(['success' => true]);
+                
             } else {
                 throw new Exception('Invalid endpoint');
             }
@@ -515,6 +537,22 @@ try {
                 $shares = $fileManager->getFileShares($fileId, $currentUser['id']);
                 echo json_encode(['success' => true, 'shares' => $shares]);
                 
+            } elseif (preg_match('/\/files\/(\d+)\/versions/', $requestUri, $matches)) {
+                $fileId = $matches[1];
+                $versions = $fileManager->getFileVersions($fileId, $currentUser['id'] ?? null);
+                echo json_encode(['success' => true, 'versions' => $versions]);
+                
+            } elseif (preg_match('/\/files\/(\d+)\/versions\/(\d+)/', $requestUri, $matches)) {
+                $fileId = $matches[1];
+                $versionNumber = $matches[2];
+                $version = $fileManager->getFileVersion($fileId, $versionNumber, $currentUser['id'] ?? null);
+                echo json_encode(['success' => true, 'version' => $version]);
+                
+            } elseif (preg_match('/\/files\/(\d+)\/version-stats/', $requestUri, $matches)) {
+                $fileId = $matches[1];
+                $stats = $fileManager->getFileVersionStats($fileId, $currentUser['id'] ?? null);
+                echo json_encode(['success' => true, 'stats' => $stats]);
+                
             } elseif (strpos($requestUri, '/test') !== false) {
                 echo json_encode(['success' => true, 'message' => 'XCString Tool API is working']);
                 
@@ -539,6 +577,15 @@ try {
                 $fileId = $matches[1];
                 $userId = $matches[2];
                 $fileManager->unshareFile($fileId, $currentUser['id'], $userId);
+                echo json_encode(['success' => true]);
+                
+            } elseif (preg_match('/\/files\/(\d+)\/versions\/(\d+)/', $requestUri, $matches)) {
+                if (!$currentUser) {
+                    throw new Exception('Authentication required');
+                }
+                $fileId = $matches[1];
+                $versionNumber = $matches[2];
+                $fileManager->deleteFileVersion($fileId, $versionNumber, $currentUser['id']);
                 echo json_encode(['success' => true]);
                 
             } else {
