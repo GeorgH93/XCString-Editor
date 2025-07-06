@@ -424,7 +424,10 @@ try {
                         throw new Exception('Provider not available');
                     }
                     
-                    $oauthProvider = OAuth2ProviderFactory::create($provider, $oauthProviders[$provider]['config'], $config);
+                    // Get provider config - handle both built-in and custom providers
+                    $providerConfig = $oauthProviders[$provider]['config'];
+                    
+                    $oauthProvider = OAuth2ProviderFactory::create($provider, $providerConfig, $config);
                     $accessToken = $oauthProvider->getAccessToken($_GET['code']);
                     $userInfo = $oauthProvider->getUserInfo($accessToken);
                     
@@ -433,6 +436,8 @@ try {
                     header('Location: ' . $config['app']['base_url'] . '?oauth_success=1');
                     exit;
                 } catch (Exception $e) {
+                    error_log("OAuth2 callback error: " . $e->getMessage());
+                    error_log("Stack trace: " . $e->getTraceAsString());
                     header('Location: ' . $config['app']['base_url'] . '?oauth_error=' . urlencode($e->getMessage()));
                     exit;
                 }

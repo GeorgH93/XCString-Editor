@@ -12,6 +12,12 @@ abstract class OAuth2Provider {
     }
     
     protected function getRedirectUri() {
+        // For custom providers, check if redirect_uri is explicitly set in config
+        if (isset($this->config['redirect_uri']) && !empty($this->config['redirect_uri'])) {
+            return $this->config['redirect_uri'];
+        }
+        
+        // Default redirect URI pattern
         return $this->baseUrl . '/backend/index.php/auth/oauth/' . $this->providerName . '/callback';
     }
     
@@ -369,6 +375,14 @@ class GitLabOAuth2Provider extends OAuth2Provider {
 class CustomOAuth2Provider extends OAuth2Provider {
     
     public function getAuthorizationUrl($state = null) {
+        // Validate required configuration
+        $requiredFields = ['client_id', 'authorize_url', 'scope'];
+        foreach ($requiredFields as $field) {
+            if (empty($this->config[$field])) {
+                throw new Exception("Missing required configuration field for custom provider '{$this->providerName}': $field");
+            }
+        }
+        
         if (!$state) {
             $state = $this->generateState();
         }
@@ -383,13 +397,29 @@ class CustomOAuth2Provider extends OAuth2Provider {
         
         // Add any additional parameters
         if (!empty($this->config['additional_params'])) {
-            $params = array_merge($params, $this->config['additional_params']);
+            if (is_array($this->config['additional_params'])) {
+                $params = array_merge($params, $this->config['additional_params']);
+            } else if (is_string($this->config['additional_params'])) {
+                // Handle JSON string format
+                $additionalParams = json_decode($this->config['additional_params'], true);
+                if ($additionalParams && is_array($additionalParams)) {
+                    $params = array_merge($params, $additionalParams);
+                }
+            }
         }
         
         return $this->config['authorize_url'] . '?' . http_build_query($params);
     }
     
     public function getAccessToken($authorizationCode) {
+        // Validate required configuration
+        $requiredFields = ['client_id', 'client_secret', 'token_url'];
+        foreach ($requiredFields as $field) {
+            if (empty($this->config[$field])) {
+                throw new Exception("Missing required configuration field for custom provider '{$this->providerName}': $field");
+            }
+        }
+        
         $data = [
             'client_id' => $this->config['client_id'],
             'client_secret' => $this->config['client_secret'],
@@ -406,13 +436,21 @@ class CustomOAuth2Provider extends OAuth2Provider {
         $tokenData = $this->parseJsonResponse($response);
         
         if (!isset($tokenData['access_token'])) {
-            throw new Exception('Access token not found in response');
+            throw new Exception("Access token not found in response from custom provider '{$this->providerName}'. Response: " . substr($response, 0, 500));
         }
         
         return $tokenData['access_token'];
     }
     
     public function getUserInfo($accessToken) {
+        // Validate required configuration
+        $requiredFields = ['user_info_url', 'user_id_field', 'user_email_field', 'user_name_field'];
+        foreach ($requiredFields as $field) {
+            if (empty($this->config[$field])) {
+                throw new Exception("Missing required configuration field for custom provider '{$this->providerName}': $field");
+            }
+        }
+        
         $response = $this->makeHttpRequest(
             $this->config['user_info_url'],
             null,
@@ -421,12 +459,29 @@ class CustomOAuth2Provider extends OAuth2Provider {
         
         $userData = $this->parseJsonResponse($response);
         
+        // Check if required fields exist in response
+        $userIdField = $this->config['user_id_field'];
+        $userEmailField = $this->config['user_email_field'];
+        $userNameField = $this->config['user_name_field'];
+        
+        if (!isset($userData[$userIdField])) {
+            throw new Exception("Field '{$userIdField}' not found in user info response for provider '{$this->providerName}'");
+        }
+        
+        if (!isset($userData[$userEmailField])) {
+            throw new Exception("Field '{$userEmailField}' not found in user info response for provider '{$this->providerName}'");
+        }
+        
+        if (!isset($userData[$userNameField])) {
+            throw new Exception("Field '{$userNameField}' not found in user info response for provider '{$this->providerName}'");
+        }
+        
         return [
             'provider' => $this->providerName,
-            'provider_id' => $userData[$this->config['user_id_field']],
-            'email' => $userData[$this->config['user_email_field']],
-            'name' => $userData[$this->config['user_name_field']],
-            'avatar' => $userData[$this->config['user_avatar_field']] ?? null,
+            'provider_id' => $userData[$userIdField],
+            'email' => $userData[$userEmailField],
+            'name' => $userData[$userNameField],
+            'avatar' => isset($this->config['user_avatar_field']) ? ($userData[$this->config['user_avatar_field']] ?? null) : null,
         ];
     }
     
@@ -459,8 +514,17 @@ class OAuth2ProviderFactory {
     
     private static function isCustomProvider($providerName, $mainConfig) {
         // Check if the provider is in custom_providers or env_custom_providers
-        return isset($mainConfig['oauth2']['custom_providers'][$providerName]) || 
-               isset($mainConfig['oauth2']['env_custom_providers'][$providerName]);
+        if (isset($mainConfig['oauth2']['custom_providers'][$providerName])) {
+            return true;
+        }
+        
+        if (isset($mainConfig['oauth2']['env_custom_providers'][$providerName])) {
+            return true;
+        }
+        
+        // Check if this is a custom provider that's not in the built-in providers list
+        $builtInProviders = ['google', 'github', 'microsoft', 'gitlab'];
+        return !in_array($providerName, $builtInProviders);
     }
     
     public static function getAvailableProviders($config) {
