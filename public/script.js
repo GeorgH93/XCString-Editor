@@ -79,6 +79,18 @@ class XCStringEditor {
         this.statusTopBtn = document.getElementById('statusTopBtn');
         this.statusBottomBtn = document.getElementById('statusBottomBtn');
         this.statusNextBtn = document.getElementById('statusNextBtn');
+        
+        // Version history elements
+        this.versionHistoryBtn = document.getElementById('versionHistoryBtn');
+        this.versionHistoryModal = document.getElementById('versionHistoryModal');
+        this.closeVersionHistoryModal = document.getElementById('closeVersionHistoryModal');
+        this.closeVersionHistory = document.getElementById('closeVersionHistory');
+        this.versionHistoryTitle = document.getElementById('versionHistoryTitle');
+        this.versionStats = document.getElementById('versionStats');
+        this.versionCount = document.getElementById('versionCount');
+        this.versionContributors = document.getElementById('versionContributors');
+        this.versionSize = document.getElementById('versionSize');
+        this.versionList = document.getElementById('versionList');
     }
 
     setupEventListeners() {
@@ -158,6 +170,25 @@ class XCStringEditor {
         
         this.proofreadAllBtn.addEventListener('click', () => {
             this.proofreadAllLocalizations();
+        });
+        
+        // Version history listeners
+        this.versionHistoryBtn.addEventListener('click', () => {
+            this.showVersionHistory();
+        });
+        
+        this.closeVersionHistoryModal.addEventListener('click', () => {
+            this.hideVersionHistory();
+        });
+        
+        this.closeVersionHistory.addEventListener('click', () => {
+            this.hideVersionHistory();
+        });
+        
+        this.versionHistoryModal.addEventListener('click', (e) => {
+            if (e.target === this.versionHistoryModal) {
+                this.hideVersionHistory();
+            }
         });
         
         // Status bar listeners
@@ -532,6 +563,7 @@ class XCStringEditor {
                 // Show appropriate buttons
                 this.saveBtn.style.display = this.currentUser ? 'inline-block' : 'none';
                 this.shareBtn.style.display = this.currentUser ? 'inline-block' : 'none';
+                this.versionHistoryBtn.style.display = this.currentUser && this.currentFileId ? 'inline-block' : 'none';
                 
                 this.renderEditor();
             } else {
@@ -581,6 +613,7 @@ class XCStringEditor {
         
         this.saveBtn.style.display = 'inline-block';
         this.shareBtn.style.display = 'none';
+        this.versionHistoryBtn.style.display = 'none';
         
         this.renderEditor();
     }
@@ -698,7 +731,7 @@ class XCStringEditor {
         
         const canEdit = await this.showConfirmDialog(
             'Share Permissions', 
-            'Allow editing? (Choose "Cancel" for read-only access)'
+            `Share "${this.editorTitle.textContent}" with ${email}?\n\nClick "OK" to allow editing, or "Cancel" for read-only access.`
         );
         
         try {
@@ -2726,9 +2759,17 @@ class XCStringEditor {
     // Confirmation Modal
     showConfirmDialog(title, message) {
         return new Promise((resolve) => {
+            // Ensure modal is hidden first to reset state
+            this.confirmModal.style.display = 'none';
+            
+            // Set new content
             this.confirmTitle.textContent = title;
             this.confirmMessage.textContent = message;
-            this.confirmModal.style.display = 'block';
+            
+            // Small delay to ensure DOM update, then show
+            setTimeout(() => {
+                this.confirmModal.style.display = 'block';
+            }, 10);
             
             const handleOk = () => {
                 this.hideConfirmModal();
@@ -2754,6 +2795,9 @@ class XCStringEditor {
 
     hideConfirmModal() {
         this.confirmModal.style.display = 'none';
+        // Clear content to prevent stale data
+        this.confirmTitle.textContent = '';
+        this.confirmMessage.textContent = '';
     }
 
     // Input Modal
@@ -2799,7 +2843,10 @@ class XCStringEditor {
 
     hideInputModal() {
         this.inputModal.style.display = 'none';
+        // Clear all content to prevent stale data
         this.inputField.value = '';
+        this.inputTitle.textContent = '';
+        this.inputLabel.textContent = '';
     }
 
     // Utility function to escape HTML attributes
@@ -3030,6 +3077,252 @@ class XCStringEditor {
         } else {
             console.warn(`Localizations container not found for key: ${stringKey}`);
         }
+    }
+
+    // Version History Methods
+    
+    async showVersionHistory() {
+        if (!this.currentFileId) {
+            this.showNotification('No file loaded', 'error');
+            return;
+        }
+        
+        try {
+            // Load versions first
+            const versionsResponse = await fetch(`/backend/index.php/files/${this.currentFileId}/versions`);
+            const versionsResult = await versionsResponse.json();
+            
+            if (!versionsResult.success) {
+                this.showNotification('Failed to load versions: ' + (versionsResult.error || 'Unknown error'), 'error');
+                return;
+            }
+            
+            // Try to load stats, but fallback to default stats if it fails
+            let stats = {
+                total_versions: 0,
+                unique_contributors: 0,
+                total_size_bytes: 0
+            };
+            
+            try {
+                const statsResponse = await fetch(`/backend/index.php/files/${this.currentFileId}/version-stats`);
+                const statsResult = await statsResponse.json();
+                
+                if (statsResult.success && statsResult.stats) {
+                    stats = statsResult.stats;
+                } else {
+                    console.warn('Stats endpoint failed, using calculated stats');
+                    // Calculate basic stats from versions data
+                    if (versionsResult.versions && versionsResult.versions.length > 0) {
+                        stats.total_versions = versionsResult.versions.length;
+                        stats.unique_contributors = new Set(versionsResult.versions.map(v => v.created_by_user_id)).size;
+                        stats.total_size_bytes = versionsResult.versions.reduce((sum, v) => sum + (v.size_bytes || 0), 0);
+                    }
+                }
+            } catch (statsError) {
+                console.warn('Stats endpoint error, using calculated stats:', statsError);
+                // Calculate basic stats from versions data
+                if (versionsResult.versions && versionsResult.versions.length > 0) {
+                    stats.total_versions = versionsResult.versions.length;
+                    stats.unique_contributors = new Set(versionsResult.versions.map(v => v.created_by_user_id)).size;
+                    stats.total_size_bytes = versionsResult.versions.reduce((sum, v) => sum + (v.size_bytes || 0), 0);
+                }
+            }
+            
+            this.renderVersionHistory(versionsResult.versions, stats);
+            this.versionHistoryModal.style.display = 'block';
+            
+        } catch (error) {
+            this.showNotification('Error loading version history: ' + error.message, 'error');
+        }
+    }
+    
+    hideVersionHistory() {
+        this.versionHistoryModal.style.display = 'none';
+    }
+    
+    renderVersionHistory(versions, stats) {
+        const fileName = this.editorTitle.textContent;
+        this.versionHistoryTitle.textContent = `Version History - ${fileName}`;
+        
+        // Ensure stats is valid object with default values
+        const safeStats = {
+            total_versions: stats.total_versions || 0,
+            unique_contributors: stats.unique_contributors || 0,
+            total_size_bytes: stats.total_size_bytes || 0
+        };
+        
+        // Update stats
+        this.versionCount.textContent = `${safeStats.total_versions} version${safeStats.total_versions !== 1 ? 's' : ''}`;
+        this.versionContributors.textContent = `${safeStats.unique_contributors} contributor${safeStats.unique_contributors !== 1 ? 's' : ''}`;
+        this.versionSize.textContent = `${Math.round(safeStats.total_size_bytes / 1024)} KB total`;
+        
+        // Render version list
+        if (!versions || !Array.isArray(versions) || versions.length === 0) {
+            this.versionList.innerHTML = '<p class="empty-state">No versions found</p>';
+            return;
+        }
+        
+        const currentVersionNumber = Math.max(...versions.map(v => v.version_number || 0));
+        
+        this.versionList.innerHTML = versions.map(version => {
+            const isCurrentVersion = (version.version_number || 0) === currentVersionNumber;
+            const sizeKB = Math.round((version.size_bytes || 0) / 1024);
+            const versionDate = new Date(version.created_at || Date.now());
+            
+            return `
+                <div class="version-item ${isCurrentVersion ? 'current-version' : ''}" data-version="${version.version_number}">
+                    <div class="version-header">
+                        <div class="version-info">
+                            <div class="version-number">
+                                Version ${version.version_number || 'Unknown'}
+                                ${isCurrentVersion ? ' (Current)' : ''}
+                            </div>
+                            <div class="version-meta">
+                                by ${version.created_by_name || version.created_by_email || 'Unknown'} • 
+                                ${versionDate.toLocaleDateString()} ${versionDate.toLocaleTimeString()} • 
+                                <span class="version-size">${sizeKB} KB</span>
+                            </div>
+                            ${version.comment ? `<div class="version-comment">"${this.escapeHtml(version.comment)}"</div>` : ''}
+                        </div>
+                        <div class="version-actions">
+                            <button class="btn btn-secondary btn-sm" onclick="editor.previewVersion(${version.version_number})">
+                                Preview
+                            </button>
+                            ${!isCurrentVersion && this.canEditCurrentFile() ? `
+                                <button class="btn btn-primary btn-sm" onclick="editor.revertToVersion(${version.version_number})">
+                                    Restore
+                                </button>
+                            ` : ''}
+                            ${!isCurrentVersion && this.canEditCurrentFile() && versions.length > 1 ? `
+                                <button class="btn btn-danger btn-sm" onclick="editor.deleteVersion(${version.version_number})">
+                                    Delete
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <div class="version-preview" id="version-preview-${version.version_number}">
+                        <pre></pre>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    async previewVersion(versionNumber) {
+        const previewElement = document.getElementById(`version-preview-${versionNumber}`);
+        const preElement = previewElement.querySelector('pre');
+        
+        if (previewElement.classList.contains('expanded')) {
+            // Hide preview
+            previewElement.classList.remove('expanded');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/backend/index.php/files/${this.currentFileId}/versions/${versionNumber}`);
+            const result = await response.json();
+            
+            if (result.success) {
+                // Format the JSON content nicely
+                const content = JSON.parse(result.version.content);
+                const formattedContent = JSON.stringify(content, null, 2);
+                
+                // Truncate if too long
+                const maxLength = 2000;
+                const displayContent = formattedContent.length > maxLength 
+                    ? formattedContent.substring(0, maxLength) + '\n... (truncated)'
+                    : formattedContent;
+                
+                preElement.textContent = displayContent;
+                previewElement.classList.add('expanded');
+            } else {
+                this.showNotification('Failed to load version content', 'error');
+            }
+        } catch (error) {
+            this.showNotification('Error loading version: ' + error.message, 'error');
+        }
+    }
+    
+    async revertToVersion(versionNumber) {
+        const shouldRevert = await this.showConfirmDialog(
+            'Restore Version',
+            `Are you sure you want to restore to version ${versionNumber}? This will create a new version with the content from version ${versionNumber}.`
+        );
+        
+        if (!shouldRevert) return;
+        
+        const comment = await this.showInputDialog(
+            'Restore Version',
+            'Enter a comment for this restoration:',
+            `Restored to version ${versionNumber}`
+        );
+        
+        if (comment === null) return;
+        
+        try {
+            const response = await fetch(`/backend/index.php/files/${this.currentFileId}/revert`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    version_number: versionNumber,
+                    comment: comment
+                })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                this.showNotification('Version restored successfully', 'success');
+                // Reload the file to show the restored content
+                await this.loadFile(this.currentFileId);
+                // Refresh version history
+                await this.showVersionHistory();
+            } else {
+                this.showNotification('Failed to restore version: ' + result.error, 'error');
+            }
+        } catch (error) {
+            this.showNotification('Error restoring version: ' + error.message, 'error');
+        }
+    }
+    
+    async deleteVersion(versionNumber) {
+        const shouldDelete = await this.showConfirmDialog(
+            'Delete Version',
+            `Are you sure you want to delete version ${versionNumber}? This action cannot be undone.`
+        );
+        
+        if (!shouldDelete) return;
+        
+        try {
+            const response = await fetch(`/backend/index.php/files/${this.currentFileId}/versions/${versionNumber}`, {
+                method: 'DELETE'
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                this.showNotification('Version deleted successfully', 'success');
+                // Refresh version history
+                await this.showVersionHistory();
+            } else {
+                this.showNotification('Failed to delete version: ' + result.error, 'error');
+            }
+        } catch (error) {
+            this.showNotification('Error deleting version: ' + error.message, 'error');
+        }
+    }
+    
+    canEditCurrentFile() {
+        // Check if current user can edit the current file
+        // For now, return true if user is logged in and has a file loaded
+        return this.currentUser && this.currentFileId;
+    }
+    
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     // Debug function for testing data integrity

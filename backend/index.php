@@ -78,13 +78,8 @@ try {
         $sqlitePath = $config['database']['sqlite_path'];
         if (!file_exists($sqlitePath)) {
             $db->initializeSchema();
-        } else {
-            // For existing databases, just run migrations
-            $db->runMigrations();
         }
-    } else {
-        // For MySQL/PostgreSQL, always check for migrations
-        $db->runMigrations();
+        // Note: Version history table is now created automatically by FileManager
     }
 } catch (Exception $e) {
     writeLog("Database initialization failed: " . $e->getMessage(), 'ERROR');
@@ -530,24 +525,6 @@ try {
                 $files = $fileManager->getPublicFiles();
                 echo json_encode(['success' => true, 'files' => $files]);
                 
-            } elseif (preg_match('/\/files\/(\d+)/', $requestUri, $matches)) {
-                $fileId = $matches[1];
-                $file = $fileManager->getFile($fileId, $currentUser['id'] ?? null);
-                echo json_encode(['success' => true, 'file' => $file]);
-                
-            } elseif (preg_match('/\/files\/(\d+)\/shares/', $requestUri, $matches)) {
-                if (!$currentUser) {
-                    throw new Exception('Authentication required');
-                }
-                $fileId = $matches[1];
-                $shares = $fileManager->getFileShares($fileId, $currentUser['id']);
-                echo json_encode(['success' => true, 'shares' => $shares]);
-                
-            } elseif (preg_match('/\/files\/(\d+)\/versions/', $requestUri, $matches)) {
-                $fileId = $matches[1];
-                $versions = $fileManager->getFileVersions($fileId, $currentUser['id'] ?? null);
-                echo json_encode(['success' => true, 'versions' => $versions]);
-                
             } elseif (preg_match('/\/files\/(\d+)\/versions\/(\d+)/', $requestUri, $matches)) {
                 $fileId = $matches[1];
                 $versionNumber = $matches[2];
@@ -559,6 +536,24 @@ try {
                 $stats = $fileManager->getFileVersionStats($fileId, $currentUser['id'] ?? null);
                 echo json_encode(['success' => true, 'stats' => $stats]);
                 
+            } elseif (preg_match('/\/files\/(\d+)\/versions/', $requestUri, $matches)) {
+                $fileId = $matches[1];
+                $versions = $fileManager->getFileVersions($fileId, $currentUser['id'] ?? null);
+                echo json_encode(['success' => true, 'versions' => $versions]);
+                
+            } elseif (preg_match('/\/files\/(\d+)\/shares/', $requestUri, $matches)) {
+                if (!$currentUser) {
+                    throw new Exception('Authentication required');
+                }
+                $fileId = $matches[1];
+                $shares = $fileManager->getFileShares($fileId, $currentUser['id']);
+                echo json_encode(['success' => true, 'shares' => $shares]);
+                
+            } elseif (preg_match('/\/files\/(\d+)/', $requestUri, $matches)) {
+                $fileId = $matches[1];
+                $file = $fileManager->getFile($fileId, $currentUser['id'] ?? null);
+                echo json_encode(['success' => true, 'file' => $file]);
+                
             } elseif (strpos($requestUri, '/test') !== false) {
                 echo json_encode(['success' => true, 'message' => 'XCString Tool API is working']);
                 
@@ -568,12 +563,13 @@ try {
             break;
             
         case 'DELETE':
-            if (preg_match('/\/files\/(\d+)/', $requestUri, $matches)) {
+            if (preg_match('/\/files\/(\d+)\/versions\/(\d+)/', $requestUri, $matches)) {
                 if (!$currentUser) {
                     throw new Exception('Authentication required');
                 }
                 $fileId = $matches[1];
-                $fileManager->deleteFile($fileId, $currentUser['id']);
+                $versionNumber = $matches[2];
+                $fileManager->deleteFileVersion($fileId, $versionNumber, $currentUser['id']);
                 echo json_encode(['success' => true]);
                 
             } elseif (preg_match('/\/files\/(\d+)\/shares\/(\d+)/', $requestUri, $matches)) {
@@ -585,13 +581,12 @@ try {
                 $fileManager->unshareFile($fileId, $currentUser['id'], $userId);
                 echo json_encode(['success' => true]);
                 
-            } elseif (preg_match('/\/files\/(\d+)\/versions\/(\d+)/', $requestUri, $matches)) {
+            } elseif (preg_match('/\/files\/(\d+)/', $requestUri, $matches)) {
                 if (!$currentUser) {
                     throw new Exception('Authentication required');
                 }
                 $fileId = $matches[1];
-                $versionNumber = $matches[2];
-                $fileManager->deleteFileVersion($fileId, $versionNumber, $currentUser['id']);
+                $fileManager->deleteFile($fileId, $currentUser['id']);
                 echo json_encode(['success' => true]);
                 
             } else {

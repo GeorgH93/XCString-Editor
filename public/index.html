@@ -157,6 +157,7 @@
                         <button id="addStringBtn" class="btn btn-primary">Add String</button>
                         <button id="saveBtn" class="btn btn-secondary" style="display: none;">Save</button>
                         <button id="shareBtn" class="btn btn-secondary" style="display: none;">Share</button>
+                        <button id="versionHistoryBtn" class="btn btn-secondary" style="display: none;">Version History</button>
                         <button id="exportBtn" class="btn btn-secondary">Export</button>
                     </div>
                 </div>
@@ -258,6 +259,32 @@
             <button id="statusTopBtn" class="status-btn" title="Go to top">↑ Top</button>
             <button id="statusBottomBtn" class="status-btn" title="Go to bottom">↓ Bottom</button>
             <button id="statusNextBtn" class="status-btn" title="Go to next incomplete">→ Next</button>
+        </div>
+    </div>
+
+    <!-- Version History Modal -->
+    <div id="versionHistoryModal" class="modal" style="display: none;">
+        <div class="modal-content version-history-modal">
+            <span class="close" id="closeVersionHistoryModal">&times;</span>
+            <h3 id="versionHistoryTitle">Version History</h3>
+            
+            <div class="version-history-content">
+                <div class="version-history-header">
+                    <div class="version-stats" id="versionStats">
+                        <span id="versionCount">0 versions</span>
+                        <span id="versionContributors">0 contributors</span>
+                        <span id="versionSize">0 KB total</span>
+                    </div>
+                </div>
+                
+                <div class="version-list" id="versionList">
+                    <!-- Version items will be populated here -->
+                </div>
+            </div>
+            
+            <div class="version-history-actions">
+                <button type="button" id="closeVersionHistory" class="btn btn-secondary">Close</button>
+            </div>
         </div>
     </div>
 

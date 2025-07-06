@@ -7,6 +7,107 @@ class FileManager {
     public function __construct($db, $config) {
         $this->db = $db;
         $this->config = $config;
+        
+        // Ensure version history table exists
+        $this->ensureVersionHistoryTable();
+    }
+    
+    private function ensureVersionHistoryTable() {
+        // Check if file_versions table exists
+        try {
+            $this->db->fetchOne("SELECT COUNT(*) FROM file_versions LIMIT 1");
+            return; // Table exists
+        } catch (Exception $e) {
+            // Table doesn't exist, create it
+        }
+        
+        try {
+            // Create file_versions table
+            $sql = "CREATE TABLE file_versions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                file_id INTEGER NOT NULL,
+                version_number INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                comment TEXT,
+                created_by_user_id INTEGER NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                content_hash VARCHAR(64) NOT NULL,
+                size_bytes INTEGER NOT NULL,
+                FOREIGN KEY (file_id) REFERENCES xcstring_files(id) ON DELETE CASCADE,
+                FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE RESTRICT,
+                UNIQUE(file_id, version_number)
+            )";
+            
+            // Adapt SQL for different database drivers
+            if ($this->config['database']['driver'] === 'mysql') {
+                $sql = str_replace('INTEGER PRIMARY KEY AUTOINCREMENT', 'INT AUTO_INCREMENT PRIMARY KEY', $sql);
+                $sql = str_replace('TIMESTAMP DEFAULT CURRENT_TIMESTAMP', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP', $sql);
+            } elseif ($this->config['database']['driver'] === 'postgres') {
+                $sql = str_replace('INTEGER PRIMARY KEY AUTOINCREMENT', 'SERIAL PRIMARY KEY', $sql);
+            }
+            
+            $this->db->execute($sql);
+            
+            // Create indexes
+            $indexes = [
+                "CREATE INDEX idx_file_versions_file_id ON file_versions(file_id)",
+                "CREATE INDEX idx_file_versions_created_at ON file_versions(created_at)", 
+                "CREATE INDEX idx_file_versions_hash ON file_versions(content_hash)"
+            ];
+            
+            foreach ($indexes as $indexSql) {
+                try {
+                    $this->db->execute($indexSql);
+                } catch (Exception $e) {
+                    // Ignore index creation errors - they might already exist
+                }
+            }
+            
+            // Populate existing files with initial versions
+            $this->populateExistingFileVersions();
+            
+        } catch (Exception $e) {
+            error_log("Failed to create version history table: " . $e->getMessage());
+            // Don't throw - allow app to continue without version history
+        }
+    }
+    
+    private function populateExistingFileVersions() {
+        try {
+            // Get all existing files that don't have versions yet
+            $files = $this->db->fetchAll("
+                SELECT f.id, f.content, f.user_id, f.created_at 
+                FROM xcstring_files f 
+                LEFT JOIN file_versions fv ON f.id = fv.file_id 
+                WHERE fv.id IS NULL
+            ");
+            
+            foreach ($files as $file) {
+                $contentHash = hash('sha256', $file['content']);
+                $sizeBytes = strlen($file['content']);
+                
+                // Create initial version for existing file
+                $this->db->execute("
+                    INSERT INTO file_versions 
+                    (file_id, version_number, content, comment, created_by_user_id, created_at, content_hash, size_bytes) 
+                    VALUES (?, 1, ?, 'Initial version (auto-created)', ?, ?, ?, ?)
+                ", [
+                    $file['id'], 
+                    $file['content'], 
+                    $file['user_id'], 
+                    $file['created_at'],
+                    $contentHash, 
+                    $sizeBytes
+                ]);
+            }
+            
+            if (count($files) > 0) {
+                error_log("Created initial versions for " . count($files) . " existing files");
+            }
+        } catch (Exception $e) {
+            error_log("Failed to populate existing file versions: " . $e->getMessage());
+            // Don't throw - version history will work for new files
+        }
     }
     
     public function saveFile($userId, $name, $content, $isPublic = false, $comment = null) {
