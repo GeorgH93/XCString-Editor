@@ -301,6 +301,21 @@ try {
                 );
                 echo json_encode(['success' => true]);
                 
+            } elseif (strpos($requestUri, '/files/update-share-permissions') !== false) {
+                if (!$currentUser) {
+                    throw new Exception('Authentication required');
+                }
+                if (!isset($input['file_id'], $input['share_id'])) {
+                    throw new Exception('File ID and share ID are required');
+                }
+                $fileManager->updateSharePermissions(
+                    $input['file_id'], 
+                    $currentUser['id'], 
+                    $input['share_id'],
+                    $input['can_edit'] ?? false
+                );
+                echo json_encode(['success' => true]);
+                
             } elseif (strpos($requestUri, '/parse') !== false) {
                 if (!isset($input['content'])) {
                     throw new Exception('Content is required');

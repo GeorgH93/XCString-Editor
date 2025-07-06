@@ -518,6 +518,26 @@ class FileManager {
         return true;
     }
     
+    public function updateSharePermissions($fileId, $ownerId, $shareId, $canEdit) {
+        // Verify file ownership
+        $file = $this->db->fetchOne(
+            'SELECT user_id FROM xcstring_files WHERE id = ?',
+            [$fileId]
+        );
+        
+        if (!$file || $file['user_id'] != $ownerId) {
+            throw new Exception('Permission denied');
+        }
+        
+        // Update share permissions
+        $this->db->execute(
+            'UPDATE file_shares SET can_edit = ? WHERE id = ? AND file_id = ?',
+            [$canEdit ? 1 : 0, $shareId, $fileId]
+        );
+        
+        return true;
+    }
+    
     public function convertPendingSharesForNewUser($userEmail, $userId) {
         try {
             $this->db->beginTransaction();

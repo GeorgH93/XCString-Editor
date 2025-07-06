@@ -3396,6 +3396,11 @@ class XCStringEditor {
                         </span>
                     </div>
                     <div class="share-actions">
+                        ${isCurrentShare ? `
+                            <button class="btn btn-secondary btn-sm" onclick="editor.toggleSharePermission('${type}', ${share.id}, ${!canEdit})">
+                                ${canEdit ? 'Make View-Only' : 'Allow Editing'}
+                            </button>
+                        ` : ''}
                         <button class="btn btn-danger btn-sm" onclick="editor.removeShare('${type}', ${share.id})">
                             Remove
                         </button>
@@ -3429,6 +3434,36 @@ class XCStringEditor {
             }
         } catch (error) {
             this.showNotification('Error removing share: ' + error.message, 'error');
+        }
+    }
+    
+    async toggleSharePermission(type, shareId, newCanEdit) {
+        if (type !== 'current') {
+            this.showNotification('Cannot change permissions for pending shares', 'error');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/backend/index.php/files/update-share-permissions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    file_id: this.currentFileId,
+                    share_id: shareId,
+                    can_edit: newCanEdit
+                })
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                this.showNotification('Permissions updated successfully', 'success');
+                // Refresh the shares modal
+                this.showManageSharesModal();
+            } else {
+                this.showNotification('Failed to update permissions: ' + result.error, 'error');
+            }
+        } catch (error) {
+            this.showNotification('Error updating permissions: ' + error.message, 'error');
         }
     }
     
