@@ -559,6 +559,7 @@ class OAuth2ProviderFactory {
                         'display_name' => $provider->getProviderName(),
                         'config' => $providerConfig,
                         'icon_svg' => $providerConfig['icon_svg'] ?? null,
+                        'allow_registration' => $providerConfig['allow_registration'] ?? true,
                     ];
                 }
             }
@@ -574,6 +575,7 @@ class OAuth2ProviderFactory {
                         'display_name' => $provider->getProviderName(),
                         'config' => $providerConfig,
                         'icon_svg' => $providerConfig['icon_svg'] ?? null,
+                        'allow_registration' => $providerConfig['allow_registration'] ?? true,
                     ];
                 }
             }

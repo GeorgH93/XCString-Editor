@@ -190,7 +190,7 @@ class Auth {
         return false;
     }
     
-    public function handleOAuth2Login($userInfo) {
+    public function handleOAuth2Login($userInfo, $providerConfig = null) {
         // Check if OAuth2 account already exists
         $oauthAccount = $this->db->fetchOne(
             'SELECT user_id FROM oauth2_accounts WHERE provider = ? AND provider_user_id = ?',
@@ -229,17 +229,23 @@ class Auth {
         }
         
         // Create new user account
-        return $this->createUserFromOAuth2($userInfo);
+        return $this->createUserFromOAuth2($userInfo, $providerConfig);
     }
     
-    private function createUserFromOAuth2($userInfo) {
+    private function createUserFromOAuth2($userInfo, $providerConfig = null) {
         // Validate email domain if restrictions are set
         if (!$this->isEmailAllowed($userInfo['email'])) {
             throw new Exception('Email domain not allowed');
         }
         
         // Check if registration is enabled
-        if (!$this->config['registration']['enabled']) {
+        // For custom providers, check if they allow registration even if global registration is disabled
+        $allowRegistration = $this->config['registration']['enabled'];
+        if (!$allowRegistration && $providerConfig && isset($providerConfig['allow_registration'])) {
+            $allowRegistration = $providerConfig['allow_registration'];
+        }
+        
+        if (!$allowRegistration) {
             throw new Exception('Registration is disabled');
         }
         

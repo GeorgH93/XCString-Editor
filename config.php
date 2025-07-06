@@ -80,6 +80,7 @@ return [
             //     'user_avatar_field' => $_ENV['OAUTH2_KEYCLOAK_USER_AVATAR_FIELD'] ?? 'picture',
             //     'icon_svg' => $_ENV['OAUTH2_KEYCLOAK_ICON_SVG'] ?? '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>',
             //     'additional_params' => [], // Extra parameters for authorization URL
+            //     'allow_registration' => filter_var($_ENV['OAUTH2_KEYCLOAK_ALLOW_REGISTRATION'] ?? 'true', FILTER_VALIDATE_BOOLEAN), // Allow registration even if global registration is disabled
             // ],
         ],
         'env_custom_providers' => (function() {
@@ -118,6 +119,7 @@ return [
                     'icon_svg' => $_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_ICON_SVG"] ?? '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>',
                     'additional_params' => !empty($_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_ADDITIONAL_PARAMS"]) ? 
                         json_decode($_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_ADDITIONAL_PARAMS"], true) : [],
+                    'allow_registration' => filter_var($_ENV["OAUTH2_CUSTOM_PROVIDER_{$providerKey}_ALLOW_REGISTRATION"] ?? 'true', FILTER_VALIDATE_BOOLEAN), // Allow registration even if global registration is disabled
                 ];
             }
             

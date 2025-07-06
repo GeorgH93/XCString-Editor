@@ -523,7 +523,7 @@ try {
                     $accessToken = $oauthProvider->getAccessToken($_GET['code']);
                     $userInfo = $oauthProvider->getUserInfo($accessToken);
                     
-                    $user = $auth->handleOAuth2Login($userInfo);
+                    $user = $auth->handleOAuth2Login($userInfo, $providerConfig);
                     
                     header('Location: ' . $config['app']['base_url'] . '?oauth_success=1');
                     exit;
