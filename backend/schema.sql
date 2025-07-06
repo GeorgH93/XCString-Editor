@@ -61,22 +61,6 @@ CREATE TABLE oauth2_states (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- File version history table
-CREATE TABLE file_versions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    file_id INTEGER NOT NULL,
-    version_number INTEGER NOT NULL,
-    content TEXT NOT NULL,
-    comment TEXT,
-    created_by_user_id INTEGER NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    content_hash VARCHAR(64) NOT NULL, -- SHA-256 hash for deduplication
-    size_bytes INTEGER NOT NULL,
-    FOREIGN KEY (file_id) REFERENCES xcstring_files(id) ON DELETE CASCADE,
-    FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE RESTRICT,
-    UNIQUE(file_id, version_number)
-);
-
 -- Create indexes for better performance
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_xcstring_files_user_id ON xcstring_files(user_id);
@@ -87,6 +71,3 @@ CREATE INDEX idx_sessions_expires ON sessions(expires_at);
 CREATE INDEX idx_oauth2_accounts_user_id ON oauth2_accounts(user_id);
 CREATE INDEX idx_oauth2_accounts_provider ON oauth2_accounts(provider, provider_user_id);
 CREATE INDEX idx_oauth2_states_created ON oauth2_states(created_at);
-CREATE INDEX idx_file_versions_file_id ON file_versions(file_id);
-CREATE INDEX idx_file_versions_created_at ON file_versions(created_at);
-CREATE INDEX idx_file_versions_hash ON file_versions(content_hash);

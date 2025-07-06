@@ -92,11 +92,15 @@ class Database {
             
             // Skip if migration already applied
             if (in_array($migrationName, $appliedMigrations)) {
+                error_log("Skipping already applied migration: $migrationName");
                 continue;
             }
             
-            // Apply migration
+            // Apply migration (each migration is its own transaction)
             $this->applyMigration($migrationFile, $migrationName);
+            
+            // Refresh applied migrations list after each migration
+            $appliedMigrations = $this->getAppliedMigrations();
         }
     }
     
@@ -155,24 +159,32 @@ class Database {
     }
     
     private function applyMigration($migrationFile, $migrationName) {
+        error_log("Starting migration: $migrationName");
+        
         try {
             $this->beginTransaction();
             
             // Handle special migrations that require PHP logic
             if ($migrationName === '002_populate_existing_file_versions') {
+                error_log("Executing PHP logic for migration: $migrationName");
                 $this->populateExistingFileVersions();
             } else {
+                error_log("Executing SQL for migration: $migrationName");
+                
                 // Read migration SQL
                 $sql = file_get_contents($migrationFile);
                 
                 // Adapt SQL for current database driver
                 $sql = $this->adaptSqlForDriver($sql);
                 
+                error_log("Migration SQL: " . substr($sql, 0, 200) . "...");
+                
                 // Split into statements and execute
                 $statements = array_filter(array_map('trim', explode(';', $sql)));
                 
                 foreach ($statements as $statement) {
                     if (!empty($statement) && !$this->isComment($statement)) {
+                        error_log("Executing statement: " . substr($statement, 0, 100) . "...");
                         $this->pdo->exec($statement);
                     }
                 }
@@ -183,15 +195,22 @@ class Database {
             
             $this->commit();
             
-            error_log("Applied migration: $migrationName");
+            error_log("Successfully applied migration: $migrationName");
             
         } catch (Exception $e) {
             $this->rollback();
+            error_log("Migration failed: $migrationName - " . $e->getMessage());
             throw new Exception("Failed to apply migration $migrationName: " . $e->getMessage());
         }
     }
     
     private function populateExistingFileVersions() {
+        // First check if file_versions table exists
+        if (!$this->tableExists('file_versions')) {
+            error_log("file_versions table does not exist yet, skipping population");
+            return;
+        }
+        
         // Get all existing files that don't have versions yet
         $files = $this->fetchAll("
             SELECT f.id, f.content, f.user_id, f.created_at 
@@ -220,6 +239,25 @@ class Database {
         }
         
         error_log("Populated version history for " . count($files) . " existing files");
+    }
+    
+    private function tableExists($tableName) {
+        switch ($this->config['database']['driver']) {
+            case 'sqlite':
+                $result = $this->fetchOne("SELECT name FROM sqlite_master WHERE type='table' AND name=?", [$tableName]);
+                break;
+            case 'mysql':
+                $result = $this->fetchOne("SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?", 
+                    [$this->config['database']['database'], $tableName]);
+                break;
+            case 'postgres':
+                $result = $this->fetchOne("SELECT tablename FROM pg_tables WHERE tablename = ?", [$tableName]);
+                break;
+            default:
+                return false;
+        }
+        
+        return !empty($result);
     }
     
     private function adaptSqlForDriver($sql) {
