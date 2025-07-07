@@ -272,6 +272,8 @@ class Auth {
         if (!$allowRegistration) {
             throw new Exception('Registration is disabled');
         }
+
+        $userId = null;
         
         try {
             $this->db->beginTransaction();
@@ -287,16 +289,6 @@ class Auth {
             // Link OAuth2 account
             $this->linkOAuth2Account($userId, $userInfo);
             
-            // Convert any pending shares for this email address
-            if ($this->fileManager) {
-                try {
-                    $this->fileManager->convertPendingSharesForNewUser($userInfo['email'], $userId);
-                } catch (Exception $e) {
-                    // Log error but don't fail registration
-                    error_log("Failed to convert pending shares for OAuth2 user {$userInfo['email']}: " . $e->getMessage());
-                }
-            }
-            
             $this->db->commit();
             
             $user = [
@@ -311,6 +303,16 @@ class Auth {
         } catch (Exception $e) {
             $this->db->rollback();
             throw $e;
+        }
+        
+        // Convert any pending shares for this email address
+        if (!is_null($userId) && $this->fileManager) {
+            try {
+                $this->fileManager->convertPendingSharesForNewUser($userInfo['email'], $userId);
+            } catch (Exception $e) {
+                // Log error but don't fail registration
+                error_log("Failed to convert pending shares for OAuth2 user {$userInfo['email']}: " . $e->getMessage());
+            }
         }
     }
     
