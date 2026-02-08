@@ -102,8 +102,8 @@ if (strpos($requestUri, '/auth/oauth/') !== false) {
 
 function parseXcString($content) {
     $json = json_decode($content, true);
-    if (!$json) {
-        throw new Exception('Invalid xcstring format');
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        throw new Exception('Invalid xcstring format: ' . json_last_error_msg());
     }
     return $json;
 }
@@ -275,9 +275,6 @@ try {
                     
                     // Validate it's a valid xcstrings file
                     $parsed = parseXcString($content);
-                    if (!$parsed) {
-                        throw new Exception('Invalid xcstrings file format');
-                    }
                     
                     $comment = $_POST['comment'] ?? 'Uploaded new version';
                     $fileManager->updateFile($fileId, $currentUser['id'], $content, $comment);

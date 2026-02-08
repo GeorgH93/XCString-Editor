@@ -190,8 +190,8 @@ class FileManager {
         
         // Validate content is valid JSON
         $parsed = json_decode($content, true);
-        if (!$parsed) {
-            throw new Exception('Invalid xcstring content');
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new Exception('Invalid xcstring content: ' . json_last_error_msg());
         }
         
         try {
@@ -230,8 +230,8 @@ class FileManager {
         
         // Validate content is valid JSON
         $parsed = json_decode($content, true);
-        if (!$parsed) {
-            throw new Exception('Invalid xcstring content');
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new Exception('Invalid xcstring content: ' . json_last_error_msg());
         }
         
         // Get current content to check if it has actually changed
