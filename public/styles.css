@@ -1834,32 +1834,33 @@ body {
     border-radius: 4px;
 }
 
-.url-item.expired {
-    opacity: 0.6;
-    background: #fff3cd;
-    border-color: #ffeaa7;
-}
+ .url-item.expired {
+     opacity: 0.6;
+     background: #fff3cd;
+     border-color: #ffeaa7;
+ }
 
-.url-item.used {
-    opacity: 0.6;
-    background: #d1ecf1;
-    border-color: #bee5eb;
-}
+ .url-item-info {
+     flex: 1;
+ }
 
-.url-item-info {
-    flex: 1;
-}
+ .url-item-title {
+     font-weight: 500;
+     font-size: 0.9rem;
+ }
 
-.url-item-title {
-    font-weight: 500;
-    font-size: 0.9rem;
-}
+ .url-item-details {
+     font-size: 0.8rem;
+     color: #666;
+     margin-top: 2px;
+ }
 
-.url-item-details {
-    font-size: 0.8rem;
-    color: #666;
-    margin-top: 2px;
-}
+ .last-used {
+     color: #007bff;
+     font-size: 0.75rem;
+     margin-top: 4px;
+     display: block;
+ }
 
 .url-item-actions {
     display: flex;

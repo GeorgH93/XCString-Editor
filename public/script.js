@@ -4006,36 +4006,40 @@ class XCStringEditor {
             this.existingUrlsList.innerHTML = '<p class="empty-state">No upload URLs created yet</p>';
             return;
         }
-        
+
         this.existingUrlsList.innerHTML = urls.map(url => {
             const isExpired = new Date(url.expires_at) < new Date();
-            const isUsed = url.is_used;
-            
+            const isUsed = url.used_at !== null;
+
             let statusClass = '';
             let statusText = 'Active';
-            
+            let lastUsedText = '';
+
             if (isUsed) {
-                statusClass = 'used';
-                statusText = `Used ${new Date(url.used_at).toLocaleDateString()}`;
-            } else if (isExpired) {
+                lastUsedText = `Last used: ${new Date(url.used_at).toLocaleDateString()} ${new Date(url.used_at).toLocaleTimeString()}`;
+                statusText = 'Active (used)';
+            }
+
+            if (isExpired) {
                 statusClass = 'expired';
                 statusText = 'Expired';
             }
-            
+
             return `
                 <div class="url-item ${statusClass}">
                     <div class="url-item-info">
                         <div class="url-item-title">
-                            ${url.comment_prefix || 'Upload URL'} 
+                            ${url.comment_prefix || 'Upload URL'}
                             <span class="status">(${statusText})</span>
                         </div>
                         <div class="url-item-details">
-                            Created: ${new Date(url.created_at).toLocaleDateString()} | 
+                            Created: ${new Date(url.created_at).toLocaleDateString()} |
                             Expires: ${new Date(url.expires_at).toLocaleDateString()}
+                            ${lastUsedText ? `<br><span class="last-used">${lastUsedText}</span>` : ''}
                         </div>
                     </div>
                     <div class="url-item-actions">
-                        ${!isUsed && !isExpired ? `
+                        ${!isExpired ? `
                             <button class="btn btn-sm btn-secondary" onclick="editor.copyToClipboard('${this.buildUploadUrl(url.token)}')">
                                 Copy URL
                             </button>
