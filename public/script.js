@@ -1146,10 +1146,29 @@ class XCStringEditor {
         localizationsGroup.appendChild(localizationsLabel);
         localizationsGroup.appendChild(localizationsDiv);
         localizationsGroup.appendChild(buttonContainer);
-        
+
+        const hasSubstitutions = Object.values(localizations).some(loc => loc.substitutions && Object.keys(loc.substitutions).length > 0);
+        let substitutionsDiv = null;
+        if (hasSubstitutions) {
+            const substitutionsGroup = document.createElement('div');
+            substitutionsGroup.className = 'form-group substitutions-group';
+
+            const substitutionsLabel = document.createElement('label');
+            substitutionsLabel.textContent = 'Substitutions:';
+
+            substitutionsDiv = document.createElement('div');
+            substitutionsDiv.className = 'substitutions';
+            substitutionsDiv.dataset.key = key;
+            this.renderSubstitutions(substitutionsDiv, key, localizations);
+
+            substitutionsGroup.appendChild(substitutionsLabel);
+            substitutionsGroup.appendChild(substitutionsDiv);
+            detailsDiv.appendChild(substitutionsGroup);
+        }
+
         detailsDiv.appendChild(commentGroup);
         detailsDiv.appendChild(localizationsGroup);
-        
+
         entryDiv.appendChild(headerDiv);
         entryDiv.appendChild(detailsDiv);
 
@@ -1614,7 +1633,7 @@ class XCStringEditor {
         
         Object.keys(localizations).forEach(lang => {
             const localization = localizations[lang];
-            
+
             // Check if this localization has variations
             if (localization.variations) {
                 this.renderVariationLocalization(container, stringKey, lang, localization);
@@ -1841,6 +1860,155 @@ class XCStringEditor {
         entryDiv.appendChild(deleteBtn);
         
         return entryDiv;
+    }
+
+    renderSubstitutions(container, stringKey, localizations) {
+        container.innerHTML = '';
+
+        if (!localizations || typeof localizations !== 'object') {
+            return;
+        }
+
+        Object.keys(localizations).forEach(lang => {
+            const localization = localizations[lang];
+
+            if (localization.substitutions && Object.keys(localization.substitutions).length > 0) {
+                this.renderLocalizationSubstitutions(container, stringKey, lang, localization.substitutions);
+            }
+        });
+    }
+
+    renderLocalizationSubstitutions(container, stringKey, lang, substitutions) {
+        const substitutionContainer = document.createElement('div');
+        substitutionContainer.className = 'substitution-container';
+
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'substitution-header';
+
+        const langLabel = document.createElement('strong');
+        langLabel.textContent = `${lang} - Substitutions`;
+
+        headerDiv.appendChild(langLabel);
+        substitutionContainer.appendChild(headerDiv);
+
+        Object.keys(substitutions).sort().forEach(subKey => {
+            const substitution = substitutions[subKey];
+            const subEntryDiv = this.renderSubstitutionEntry(stringKey, lang, subKey, substitution);
+            substitutionContainer.appendChild(subEntryDiv);
+        });
+
+        container.appendChild(substitutionContainer);
+    }
+
+    renderSubstitutionEntry(stringKey, lang, subKey, substitution) {
+        const entryDiv = document.createElement('div');
+        entryDiv.className = 'substitution-entry';
+
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'substitution-entry-header';
+
+        const keyLabel = document.createElement('span');
+        keyLabel.className = 'substitution-key';
+        keyLabel.textContent = `arg${substitution.argNum || subKey.replace('arg', '')} (${substitution.formatSpecifier || '@'})`;
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn btn-danger btn-sm substitution-delete-btn';
+        deleteBtn.textContent = '×';
+        deleteBtn.addEventListener('click', () => {
+            this.deleteSubstitution(stringKey, lang, subKey);
+        });
+
+        headerDiv.appendChild(keyLabel);
+        headerDiv.appendChild(deleteBtn);
+        entryDiv.appendChild(headerDiv);
+
+        Object.keys(substitution.variations || {}).forEach(varType => {
+            const variationDiv = this.renderSubstitutionVariation(
+                stringKey, lang, subKey, varType, substitution.variations[varType]
+            );
+            entryDiv.appendChild(variationDiv);
+        });
+
+        return entryDiv;
+    }
+
+    renderSubstitutionVariation(stringKey, lang, subKey, varType, variation) {
+        const varDiv = document.createElement('div');
+        varDiv.className = 'substitution-variation';
+
+        const typeLabel = document.createElement('div');
+        typeLabel.className = 'substitution-variation-type';
+        typeLabel.textContent = `${varType} variations:`;
+        varDiv.appendChild(typeLabel);
+
+        Object.keys(variation).forEach(catKey => {
+            const catEntry = this.renderSubstitutionCategory(
+                stringKey, lang, subKey, varType, catKey, variation[catKey]
+            );
+            varDiv.appendChild(catEntry);
+        });
+
+        const addCategoryBtn = document.createElement('button');
+        addCategoryBtn.className = 'btn btn-secondary btn-sm add-category-btn';
+        addCategoryBtn.textContent = `Add ${varType} category`;
+        addCategoryBtn.addEventListener('click', () => {
+            this.addSubstitutionCategory(stringKey, lang, subKey, varType);
+        });
+        varDiv.appendChild(addCategoryBtn);
+
+        return varDiv;
+    }
+
+    renderSubstitutionCategory(stringKey, lang, subKey, varType, catKey, categoryData) {
+        const catDiv = document.createElement('div');
+        catDiv.className = 'substitution-category';
+
+        const keyLabel = document.createElement('label');
+        keyLabel.textContent = `${catKey}:`;
+
+        const valueInput = document.createElement('input');
+        valueInput.type = 'text';
+        valueInput.className = 'substitution-value-input';
+        valueInput.value = categoryData.stringUnit ? categoryData.stringUnit.value : '';
+        valueInput.placeholder = 'Value';
+
+        const stateSelect = document.createElement('select');
+        stateSelect.className = 'substitution-state-select';
+        ['new', 'translated', 'needs_review'].forEach(stateOption => {
+            const option = document.createElement('option');
+            option.value = stateOption;
+            option.textContent = stateOption.replace('_', ' ');
+            option.selected = stateOption === (categoryData.stringUnit ? categoryData.stringUnit.state : 'new');
+            stateSelect.appendChild(option);
+        });
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn btn-danger btn-sm substitution-cat-delete-btn';
+        deleteBtn.textContent = '×';
+
+        valueInput.addEventListener('change', (e) => {
+            this.updateSubstitutionValue(stringKey, lang, subKey, varType, catKey, e.target.value);
+            this.autoUpdateSubstitutionState(stringKey, lang, subKey, varType, catKey, e.target.value, stateSelect);
+        });
+
+        valueInput.addEventListener('input', (e) => {
+            this.autoUpdateSubstitutionState(stringKey, lang, subKey, varType, catKey, e.target.value, stateSelect, true);
+        });
+
+        stateSelect.addEventListener('change', (e) => {
+            this.updateSubstitutionState(stringKey, lang, subKey, varType, catKey, e.target.value);
+        });
+
+        deleteBtn.addEventListener('click', () => {
+            this.deleteSubstitutionCategory(stringKey, lang, subKey, varType, catKey);
+        });
+
+        catDiv.appendChild(keyLabel);
+        catDiv.appendChild(valueInput);
+        catDiv.appendChild(stateSelect);
+        catDiv.appendChild(deleteBtn);
+
+        return catDiv;
     }
 
     async addNewString() {
@@ -2176,6 +2344,155 @@ class XCStringEditor {
                 this.markModified();
                 this.updateStringEntry(stringKey);
             }
+        }
+    }
+
+    updateSubstitutionValue(stringKey, lang, subKey, varType, catKey, newValue) {
+        const localization = this.data.strings[stringKey].localizations[lang];
+        if (localization.substitutions && localization.substitutions[subKey] &&
+            localization.substitutions[subKey].variations &&
+            localization.substitutions[subKey].variations[varType] &&
+            localization.substitutions[subKey].variations[varType][catKey]) {
+
+            const category = localization.substitutions[subKey].variations[varType][catKey];
+            if (!category.stringUnit) {
+                category.stringUnit = { state: 'new', value: '' };
+            }
+            category.stringUnit.value = newValue;
+            this.markModified();
+        }
+    }
+
+    updateSubstitutionState(stringKey, lang, subKey, varType, catKey, newState) {
+        const localization = this.data.strings[stringKey].localizations[lang];
+        if (localization.substitutions && localization.substitutions[subKey] &&
+            localization.substitutions[subKey].variations &&
+            localization.substitutions[subKey].variations[varType] &&
+            localization.substitutions[subKey].variations[varType][catKey]) {
+
+            const category = localization.substitutions[subKey].variations[varType][catKey];
+            if (!category.stringUnit) {
+                category.stringUnit = { state: 'new', value: '' };
+            }
+            category.stringUnit.state = newState;
+            this.markModified();
+        }
+    }
+
+    autoUpdateSubstitutionState(stringKey, lang, subKey, varType, catKey, value, stateSelect, isInputEvent = false) {
+        const trimmedValue = value ? value.trim() : '';
+        const newState = trimmedValue === '' ? 'new' : 'translated';
+
+        stateSelect.value = newState;
+
+        if (!isInputEvent) {
+            const localization = this.data.strings[stringKey].localizations[lang];
+            if (localization && localization.substitutions &&
+                localization.substitutions[subKey] &&
+                localization.substitutions[subKey].variations &&
+                localization.substitutions[subKey].variations[varType] &&
+                localization.substitutions[subKey].variations[varType][catKey]) {
+
+                const category = localization.substitutions[subKey].variations[varType][catKey];
+                if (!category.stringUnit) {
+                    category.stringUnit = { state: 'new', value: '' };
+                }
+                category.stringUnit.state = newState;
+                this.markModifiedSilent();
+            }
+        }
+    }
+
+    async deleteSubstitution(stringKey, lang, subKey) {
+        const shouldDelete = await this.showConfirmDialog(
+            'Delete Substitution',
+            `Delete substitution "arg${subKey.replace('arg', '')}"?`
+        );
+        if (shouldDelete) {
+            const localization = this.data.strings[stringKey].localizations[lang];
+            if (localization.substitutions) {
+                delete localization.substitutions[subKey];
+
+                if (Object.keys(localization.substitutions).length === 0) {
+                    delete localization.substitutions;
+                }
+
+                this.markModified();
+                this.updateStringEntry(stringKey);
+            }
+        }
+    }
+
+    async deleteSubstitutionCategory(stringKey, lang, subKey, varType, catKey) {
+        const shouldDelete = await this.showConfirmDialog(
+            'Delete Substitution Category',
+            `Delete category "${catKey}"?`
+        );
+        if (shouldDelete) {
+            const localization = this.data.strings[stringKey].localizations[lang];
+            if (localization.substitutions &&
+                localization.substitutions[subKey] &&
+                localization.substitutions[subKey].variations &&
+                localization.substitutions[subKey].variations[varType]) {
+
+                delete localization.substitutions[subKey].variations[varType][catKey];
+
+                if (Object.keys(localization.substitutions[subKey].variations[varType]).length === 0) {
+                    delete localization.substitutions[subKey].variations[varType];
+                }
+
+                if (Object.keys(localization.substitutions[subKey].variations).length === 0) {
+                    delete localization.substitutions[subKey];
+                }
+
+                if (Object.keys(localization.substitutions).length === 0) {
+                    delete localization.substitutions;
+                }
+
+                this.markModified();
+                this.updateStringEntry(stringKey);
+            }
+        }
+    }
+
+    async addSubstitutionCategory(stringKey, lang, subKey, varType) {
+        let examples = 'one, other, zero';
+        if (varType === 'device') {
+            examples = 'iphone, ipad, mac, other';
+        } else if (varType === 'width') {
+            examples = 'compact, regular, other';
+        }
+
+        const catKey = await this.showInputDialog(
+            `Add ${varType.charAt(0).toUpperCase() + varType.slice(1)} Category`,
+            `Enter ${varType} category key (e.g., ${examples}):`,
+            ''
+        );
+
+        if (catKey && catKey.trim()) {
+            const localization = this.data.strings[stringKey].localizations[lang];
+            if (!localization.substitutions) {
+                localization.substitutions = {};
+            }
+            if (!localization.substitutions[subKey]) {
+                localization.substitutions[subKey] = { argNum: 1, formatSpecifier: '@', variations: {} };
+            }
+            if (!localization.substitutions[subKey].variations) {
+                localization.substitutions[subKey].variations = {};
+            }
+            if (!localization.substitutions[subKey].variations[varType]) {
+                localization.substitutions[subKey].variations[varType] = {};
+            }
+
+            localization.substitutions[subKey].variations[varType][catKey] = {
+                stringUnit: {
+                    state: 'new',
+                    value: ''
+                }
+            };
+
+            this.markModified();
+            this.updateStringEntry(stringKey);
         }
     }
 
