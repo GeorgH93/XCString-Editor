@@ -137,10 +137,9 @@ return [
                 'api_key' => $_ENV['OPENAI_API_KEY'] ?? '',
                 'base_url' => $_ENV['OPENAI_BASE_URL'] ?? 'https://api.openai.com/v1', // Standard OpenAI API
                 'models' => !empty($_ENV['OPENAI_MODELS']) ? explode(',', $_ENV['OPENAI_MODELS']) : [
-                    'gpt-4o',
-                    'gpt-4o-mini',
-                    'gpt-4-turbo',
-                    'gpt-3.5-turbo'
+                    'gpt-5.2',
+                    'gpt-5-mini',
+                    'gpt-5.2-pro'
                 ],
             ],
             'anthropic' => [
@@ -148,11 +147,9 @@ return [
                 'api_key' => $_ENV['ANTHROPIC_API_KEY'] ?? '',
                 'base_url' => $_ENV['ANTHROPIC_BASE_URL'] ?? 'https://api.anthropic.com',
                 'models' => !empty($_ENV['ANTHROPIC_MODELS']) ? explode(',', $_ENV['ANTHROPIC_MODELS']) : [
-                    'claude-3-5-sonnet-20241022',
-                    'claude-3-5-haiku-20241022',
-                    'claude-3-opus-20240229',
-                    'claude-3-sonnet-20240229',
-                    'claude-3-haiku-20240307'
+                    'claude-opus-4-6',
+                    'claude-sonnet-4-5',
+                    'claude-haiku-4-5'
                 ],
             ],
             'openai_compatible' => [
@@ -163,6 +160,15 @@ return [
                     'llama-3.1-70b-versatile',
                     'llama-3.1-8b-instant',
                     'mixtral-8x7b-32768'
+                ],
+            ],
+            'zai' => [
+                'enabled' => filter_var($_ENV['ZAI_ENABLED'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
+                'api_key' => $_ENV['ZAI_API_KEY'] ?? '',
+                'base_url' => $_ENV['ZAI_BASE_URL'] ?? 'https://api.z.ai/api/paas/v4',
+                'models' => !empty($_ENV['ZAI_MODELS']) ? explode(',', $_ENV['ZAI_MODELS']) : [
+                    'glm-5',
+                    'glm-4.7'
                 ],
             ],
         ],

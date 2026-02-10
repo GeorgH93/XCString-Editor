@@ -133,6 +133,8 @@ Response:";
                 return $this->makeOpenAIRequest($model, $prompt, $providerConfig, $expectJson);
             case 'anthropic':
                 return $this->makeAnthropicRequest($model, $prompt, $providerConfig, $expectJson);
+            case 'zai':
+                return $this->makeZAIRequest($model, $prompt, $providerConfig, $expectJson);
             default:
                 throw new Exception("Unsupported provider: $provider");
         }
@@ -250,7 +252,63 @@ Response:";
         
         return $content;
     }
-    
+
+    private function makeZAIRequest($model, $prompt, $config, $expectJson = false) {
+        $headers = [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $config['api_key']
+        ];
+
+        $data = [
+            'model' => $model,
+            'messages' => [
+                [
+                    'role' => 'user',
+                    'content' => $prompt
+                ]
+            ],
+            'max_tokens' => $expectJson ? 4000 : 500,
+            'temperature' => 0.3
+        ];
+
+        if ($expectJson) {
+            $data['response_format'] = ['type' => 'json_object'];
+        }
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $config['base_url'] . '/chat/completions');
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, $expectJson ? 120 : 30);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false || $httpCode !== 200) {
+            throw new Exception('Z.AI request failed: HTTP ' . $httpCode);
+        }
+
+        $result = json_decode($response, true);
+        if (!$result || !isset($result['choices'][0]['message']['content'])) {
+            throw new Exception('Invalid Z.AI response format');
+        }
+
+        $content = trim($result['choices'][0]['message']['content']);
+
+        if ($expectJson) {
+            $decoded = json_decode($content, true);
+            if (!$decoded) {
+                throw new Exception('Invalid JSON response from Z.AI');
+            }
+            return $decoded;
+        }
+
+        return $content;
+    }
+
     public function buildContext($currentKey, $allStrings, $language, $maxItems = 5) {
         $context = [];
         $count = 0;
