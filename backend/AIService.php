@@ -82,9 +82,19 @@ Target language: {$targetLanguage}
 
 Instructions:
 - Provide only the translated text, no explanations
-- Maintain the same tone and style
 - Consider the context of mobile/desktop application UI
+- Use an informal, friendly tone appropriate for modern mobile/desktop applications.
+- If the target language distinguishes between formal and informal second-person address (T/V distinction), always use the informal form.
+- Never mix formal and informal address within the same translation.
+- Use the corresponding informal verb conjugations and possessive forms.
+- Be consistent throughout all translations.
 - Keep placeholders and formatting intact if any
+- Consider the context of mobile/desktop application UI
+- Do not translate product names, trademarks, or proper nouns unless they have an established localized form in {$targetLanguage}
+- Use the 'key' field to understand the context and purpose of each string
+- Do not omit or add entries
+- Ensure all output is valid, properly escaped JSON
+- Do not modify the 'key' values
 - If it's a technical term or brand name, consider if it should remain untranslated
 
 Translation:";
@@ -154,7 +164,7 @@ Response:";
                     'content' => $prompt
                 ]
             ],
-            'max_tokens' => $expectJson ? 4000 : 500, // Increase tokens for batch operations
+            'max_tokens' => $expectJson ? 40000 : 500, // Increase tokens for batch operations
             'temperature' => 0.3
         ];
         
@@ -209,7 +219,7 @@ Response:";
         
         $data = [
             'model' => $model,
-            'max_tokens' => $expectJson ? 4000 : 500, // Increase tokens for batch operations
+            'max_tokens' => $expectJson ? 40000 : 500, // Increase tokens for batch operations
             'temperature' => 0.3,
             'messages' => [
                 [
@@ -267,7 +277,7 @@ Response:";
                     'content' => $prompt
                 ]
             ],
-            'max_tokens' => $expectJson ? 4000 : 500,
+            'max_tokens' => $expectJson ? 40000 : 500,
             'temperature' => 0.3
         ];
 
@@ -419,11 +429,19 @@ Input data structure:
 
 Instructions:
 - Translate each 'text' field from {$sourceLanguage} to {$targetLanguage}
-- Maintain the same tone and style appropriate for UI elements
+- Consider the context of mobile/desktop application UI
+- Use an informal, friendly tone appropriate for modern mobile/desktop applications.
+- If the target language distinguishes between formal and informal second-person address (T/V distinction), always use the informal form.
+- Never mix formal and informal address within the same translation.
+- Use the corresponding informal verb conjugations and possessive forms.
+- Be consistent throughout all translations.
 - Keep placeholders and formatting intact if any
 - Consider the context of mobile/desktop application UI
-- If it's a technical term or brand name, consider if it should remain untranslated
+- Do not translate product names, trademarks, or proper nouns unless they have an established localized form in {$targetLanguage}
 - Use the 'key' field to understand the context and purpose of each string
+- Do not omit or add entries
+- Ensure all output is valid, properly escaped JSON
+- Do not modify the 'key' values
 
 Respond with a JSON object in this exact format:
 {
@@ -439,7 +457,9 @@ Respond with a JSON object in this exact format:
   ]
 }
 
-Important: Respond only with valid JSON, no other text.";
+Important:
+- Respond only with valid JSON
+- Do not include explanations or additional fields";
     }
     
     private function buildBatchProofreadingPrompt($items, $language) {
