@@ -158,22 +158,19 @@ Response:";
         
         $data = [
             'model' => $model,
-            'messages' => [
-                [
-                    'role' => 'user',
-                    'content' => $prompt
-                ]
-            ],
-            'max_tokens' => $expectJson ? 40000 : 500, // Increase tokens for batch operations
+            'input' => $prompt,
+            'max_tokens' => $expectJson ? 8000 : 500, // Increase tokens for batch operations
             'temperature' => 0.3
         ];
         
         if ($expectJson) {
-            $data['response_format'] = ['type' => 'json_object'];
+            $data['response_format'] = [
+                'type' => 'json_object'
+            ];
         }
         
         $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $config['base_url'] . '/chat/completions');
+        curl_setopt($ch, CURLOPT_URL, $config['base_url'] . '/responses');
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
@@ -189,11 +186,11 @@ Response:";
         }
         
         $result = json_decode($response, true);
-        if (!$result || !isset($result['choices'][0]['message']['content'])) {
+        if (!$result || !isset($result['output'][0]['content'][0]['text'])) {
             throw new Exception('Invalid AI response format');
         }
         
-        $content = trim($result['choices'][0]['message']['content']);
+        $content = $result['output'][0]['content'][0]['text'];
         
         if ($expectJson) {
             $decoded = json_decode($content, true);
