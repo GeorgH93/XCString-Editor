@@ -11,6 +11,10 @@ class AIService {
         return $this->config['ai']['enabled'] ?? false;
     }
     
+    private function isDeepL($provider) {
+        return $provider === 'deepl';
+    }
+    
     public function getAvailableProviders() {
         $providers = [];
         if (!$this->isEnabled() || !isset($this->config['ai']['providers'])) {
@@ -21,11 +25,26 @@ class AIService {
             if (($provider['enabled'] ?? false) && !empty($provider['api_key'] ?? '')) {
                 $providers[$name] = [
                     'name' => $name,
-                    'models' => $provider['models'] ?? []
+                    'models' => $provider['models'] ?? [],
+                    'capabilities' => $this->isDeepL($name)
+                        ? ['translate', 'batch_translate']
+                        : ['translate', 'batch_translate', 'proofread', 'batch_proofread']
                 ];
             }
         }
         return $providers;
+    }
+    
+    private function resolveProvider($provider, $model) {
+        $provider = $provider ?? $this->config['ai']['default_provider'];
+        $model = $model ?? $this->config['ai']['default_model'];
+        
+        $providerConfig = $this->config['ai']['providers'][$provider] ?? null;
+        if (!$providerConfig || !$providerConfig['enabled']) {
+            throw new Exception("Provider $provider is not available");
+        }
+        
+        return [$provider, $model, $providerConfig];
     }
     
     public function translate($text, $sourceLanguage, $targetLanguage, $context = [], $provider = null, $model = null) {
@@ -33,12 +52,10 @@ class AIService {
             throw new Exception('AI features are not enabled');
         }
         
-        $provider = $provider ?? $this->config['ai']['default_provider'];
-        $model = $model ?? $this->config['ai']['default_model'];
+        [$provider, $model, $providerConfig] = $this->resolveProvider($provider, $model);
         
-        $providerConfig = $this->config['ai']['providers'][$provider] ?? null;
-        if (!$providerConfig || !$providerConfig['enabled']) {
-            throw new Exception("Provider $provider is not available");
+        if ($this->isDeepL($provider)) {
+            return $this->deepLTranslate([$text], $sourceLanguage, $targetLanguage, $model, $providerConfig)[0];
         }
         
         $prompt = $this->buildTranslationPrompt($text, $sourceLanguage, $targetLanguage, $context);
@@ -51,12 +68,10 @@ class AIService {
             throw new Exception('AI features are not enabled');
         }
         
-        $provider = $provider ?? $this->config['ai']['default_provider'];
-        $model = $model ?? $this->config['ai']['default_model'];
+        [$provider, $model, $providerConfig] = $this->resolveProvider($provider, $model);
         
-        $providerConfig = $this->config['ai']['providers'][$provider] ?? null;
-        if (!$providerConfig || !$providerConfig['enabled']) {
-            throw new Exception("Provider $provider is not available");
+        if ($this->isDeepL($provider)) {
+            throw new Exception('DeepL does not support proofreading. Please select a different provider.');
         }
         
         $prompt = $this->buildProofreadingPrompt($text, $language, $context);
@@ -316,6 +331,83 @@ Response:";
         return $content;
     }
 
+    private function getDeepLBaseUrl($config) {
+        if (!empty($config['base_url'])) {
+            return $config['base_url'];
+        }
+        return str_ends_with($config['api_key'] ?? '', ':fx')
+            ? 'https://api-free.deepl.com'
+            : 'https://api.deepl.com';
+    }
+    
+    private function callDeepLApi($texts, $sourceLanguage, $targetLanguage, $model, $config) {
+        $baseUrl = $this->getDeepLBaseUrl($config);
+        
+        $data = [
+            'text' => $texts,
+            'target_lang' => strtoupper($targetLanguage),
+            'model_type' => $model,
+            'formality' => 'prefer_less',
+            'split_sentences' => '0'
+        ];
+        
+        if (!empty($sourceLanguage)) {
+            $data['source_lang'] = strtoupper($sourceLanguage);
+        }
+        
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $baseUrl . '/v2/translate');
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json',
+            'Authorization: DeepL-Auth-Key ' . $config['api_key']
+        ]);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, count($texts) > 1 ? 120 : 30);
+        
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        
+        if ($response === false || $httpCode !== 200) {
+            throw new Exception('DeepL API request failed: HTTP ' . $httpCode);
+        }
+        
+        $result = json_decode($response, true);
+        if (!$result || !isset($result['translations']) || !is_array($result['translations'])) {
+            throw new Exception('Invalid DeepL API response format');
+        }
+        
+        return $result['translations'];
+    }
+    
+    private function deepLTranslate($texts, $sourceLanguage, $targetLanguage, $model, $config) {
+        $translations = $this->callDeepLApi($texts, $sourceLanguage, $targetLanguage, $model, $config);
+        
+        return array_map(function ($t) {
+            return trim($t['text']);
+        }, $translations);
+    }
+    
+    private function deepLBatchTranslate($items, $sourceLanguage, $targetLanguage, $model, $config) {
+        $texts = array_map(function ($item) {
+            return $item['text'];
+        }, $items);
+        
+        $translations = $this->callDeepLApi($texts, $sourceLanguage, $targetLanguage, $model, $config);
+        
+        $result = [];
+        foreach ($items as $i => $item) {
+            $result[] = [
+                'key' => $item['key'],
+                'translation' => trim($translations[$i]['text'] ?? '')
+            ];
+        }
+        
+        return $result;
+    }
+
     public function buildContext($currentKey, $allStrings, $language, $maxItems = 5) {
         $context = [];
         $count = 0;
@@ -367,19 +459,16 @@ Response:";
             return [];
         }
         
-        $provider = $provider ?? $this->config['ai']['default_provider'];
-        $model = $model ?? $this->config['ai']['default_model'];
+        [$provider, $model, $providerConfig] = $this->resolveProvider($provider, $model);
         
-        $providerConfig = $this->config['ai']['providers'][$provider] ?? null;
-        if (!$providerConfig || !$providerConfig['enabled']) {
-            throw new Exception("Provider $provider is not available");
+        if ($this->isDeepL($provider)) {
+            return $this->deepLBatchTranslate($items, $sourceLanguage, $targetLanguage, $model, $providerConfig);
         }
         
         $prompt = $this->buildBatchTranslationPrompt($items, $sourceLanguage, $targetLanguage);
         
         $result = $this->makeAIRequest($provider, $model, $prompt, $providerConfig, true);
         
-        // Parse and validate the JSON response
         if (!isset($result['translations']) || !is_array($result['translations'])) {
             throw new Exception('Invalid batch translation response format');
         }
@@ -396,19 +485,16 @@ Response:";
             return [];
         }
         
-        $provider = $provider ?? $this->config['ai']['default_provider'];
-        $model = $model ?? $this->config['ai']['default_model'];
+        [$provider, $model, $providerConfig] = $this->resolveProvider($provider, $model);
         
-        $providerConfig = $this->config['ai']['providers'][$provider] ?? null;
-        if (!$providerConfig || !$providerConfig['enabled']) {
-            throw new Exception("Provider $provider is not available");
+        if ($this->isDeepL($provider)) {
+            throw new Exception('DeepL does not support proofreading. Please select a different provider.');
         }
         
         $prompt = $this->buildBatchProofreadingPrompt($items, $language);
         
         $result = $this->makeAIRequest($provider, $model, $prompt, $providerConfig, true);
         
-        // Parse and validate the JSON response
         if (!isset($result['reviews']) || !is_array($result['reviews'])) {
             throw new Exception('Invalid batch proofreading response format');
         }

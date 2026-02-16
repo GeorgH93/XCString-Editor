@@ -171,6 +171,16 @@ return [
                     'glm-4.7'
                 ],
             ],
+            'deepl' => [
+                'enabled' => filter_var($_ENV['DEEPL_ENABLED'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
+                'api_key' => $_ENV['DEEPL_API_KEY'] ?? '',
+                'base_url' => $_ENV['DEEPL_BASE_URL'] ?? 'https://api.deepl.com',
+                'models' => !empty($_ENV['DEEPL_MODELS']) ? explode(',', $_ENV['DEEPL_MODELS']) : [
+                    'latency_optimized',
+                    'quality_optimized',
+                    'prefer_quality_optimized'
+                ],
+            ],
         ],
         'default_provider' => $_ENV['AI_DEFAULT_PROVIDER'] ?? 'openai',
         'default_model' => $_ENV['AI_DEFAULT_MODEL'] ?? 'gpt-4o-mini',

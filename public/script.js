@@ -2615,6 +2615,18 @@ class XCStringEditor {
     }
 
     // AI Features
+    getSelectedProviderCapabilities() {
+        if (!this.aiConfig || !this.selectedAIProvider) return [];
+        const provider = this.aiConfig.ai_providers[this.selectedAIProvider];
+        return provider?.capabilities || ['translate', 'batch_translate', 'proofread', 'batch_proofread'];
+    }
+    
+    updateProofreadVisibility() {
+        const capabilities = this.getSelectedProviderCapabilities();
+        const canProofread = capabilities.includes('proofread');
+        this.proofreadAllBtn.style.display = canProofread ? '' : 'none';
+    }
+    
     updateAIUI() {
         if (!this.aiConfig || !this.aiConfig.ai_enabled || !this.currentUser) {
             this.aiSection.style.display = 'none';
@@ -2623,21 +2635,24 @@ class XCStringEditor {
         
         this.aiSection.style.display = 'block';
         
-        // Populate AI providers
         this.aiProvider.innerHTML = '<option value="">Select AI Provider</option>';
         Object.keys(this.aiConfig.ai_providers).forEach(provider => {
+            const providerData = this.aiConfig.ai_providers[provider];
             const option = document.createElement('option');
             option.value = provider;
-            option.textContent = provider.charAt(0).toUpperCase() + provider.slice(1);
+            const label = provider.charAt(0).toUpperCase() + provider.slice(1);
+            const capabilities = providerData.capabilities || [];
+            const isTranslationOnly = !capabilities.includes('proofread');
+            option.textContent = isTranslationOnly ? `${label} (Translation only)` : label;
             this.aiProvider.appendChild(option);
         });
         
-        // Set default provider if available
         if (Object.keys(this.aiConfig.ai_providers).length > 0) {
             const defaultProvider = Object.keys(this.aiConfig.ai_providers)[0];
             this.aiProvider.value = defaultProvider;
             this.selectedAIProvider = defaultProvider;
             this.updateAIModels();
+            this.updateProofreadVisibility();
         }
     }
     
@@ -2655,12 +2670,13 @@ class XCStringEditor {
                 this.aiModel.appendChild(option);
             });
             
-            // Set first model as default
             if (models.length > 0) {
                 this.aiModel.value = models[0];
                 this.selectedAIModel = models[0];
             }
         }
+        
+        this.updateProofreadVisibility();
     }
     
     async translateMissingLocalizations() {
@@ -3131,16 +3147,17 @@ class XCStringEditor {
             controls.feedback = feedbackDiv;
         }
         
-        // Create AI action buttons
         if (text) {
-            // Proofread button
-            const proofreadBtn = document.createElement('button');
-            proofreadBtn.className = 'btn btn-sm btn-secondary ai-btn';
-            proofreadBtn.textContent = 'AI Proofread';
-            proofreadBtn.addEventListener('click', async () => {
-                await this.proofreadSingleLocalization(stringKey, lang);
-            });
-            controls.buttons.push(proofreadBtn);
+            const capabilities = this.getSelectedProviderCapabilities();
+            if (capabilities.includes('proofread')) {
+                const proofreadBtn = document.createElement('button');
+                proofreadBtn.className = 'btn btn-sm btn-secondary ai-btn';
+                proofreadBtn.textContent = 'AI Proofread';
+                proofreadBtn.addEventListener('click', async () => {
+                    await this.proofreadSingleLocalization(stringKey, lang);
+                });
+                controls.buttons.push(proofreadBtn);
+            }
         }
         
         // Translate button (for missing localizations)
