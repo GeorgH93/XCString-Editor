@@ -164,6 +164,14 @@ Response:";
                 throw new Exception("Unsupported provider: $provider");
         }
     }
+
+    private function unwrapJson($input) {
+    	$trimmed = trim($input);
+    	if (preg_match('/^```(?:json)?\s*([\s\S]*?)\s*```$/m', $trimmed, $matches)) {
+    	    return trim($matches[1]);
+    	}
+    	return $trimmed;
+    }
     
     private function makeOpenAIRequest($model, $prompt, $config, $expectJson = false) {
         $headers = [
@@ -208,6 +216,7 @@ Response:";
         $content = $result['output'][0]['content'][0]['text'];
         
         if ($expectJson) {
+            $content = $this->unwrapJson($content);
             $decoded = json_decode($content, true);
             if (!$decoded) {
                 throw new Exception('Invalid JSON response from AI');
