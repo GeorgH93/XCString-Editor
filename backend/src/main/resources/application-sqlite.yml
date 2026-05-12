@@ -1,0 +1,9 @@
+spring:
+  datasource:
+    url: jdbc:sqlite:${DB_SQLITE_PATH:./data/database.sqlite}
+    driver-class-name: org.sqlite.JDBC
+  jpa:
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+  flyway:
+    url: jdbc:sqlite:${DB_SQLITE_PATH:./data/database.sqlite}
+    driver: org.sqlite.JDBC

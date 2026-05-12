@@ -1,0 +1,39 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=false;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: none
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: filesystem:src/test/resources/db/migration
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=false;MODE=MySQL
+    driver: org.h2.Driver
+    user: sa
+    password:
+
+xcstring:
+  registration:
+    enabled: true
+    allowed-domains:
+    invite-domains:
+  session:
+    lifetime: 604800
+    cookie-name: xcstring_session
+    cookie-secure: false
+    cookie-httponly: true
+  files:
+    max-file-size: 10485760
+    max-files-per-user: 100
+  oauth2:
+    enabled: false
+  ai:
+    enabled: false
+  app:
+    base-url: http://localhost:8080

@@ -1,0 +1,114 @@
+spring:
+  application:
+    name: xcstring-editor
+  profiles:
+    active: ${DB_DRIVER:sqlite}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        format_sql: false
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
+  servlet:
+    multipart:
+      max-file-size: 15MB
+      max-request-size: 15MB
+  web:
+    resources:
+      static-locations: classpath:/public/,file:./public/,file:../public/
+      add-mappings: true
+
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /
+
+logging:
+  level:
+    com.xcstring: ${APP_DEBUG:INFO}
+    org.springframework: INFO
+
+xcstring:
+  database:
+    driver: ${DB_DRIVER:sqlite}
+    host: ${DB_HOST:localhost}
+    port: ${DB_PORT:3306}
+    name: ${DB_NAME:xcstring_editor}
+    username: ${DB_USERNAME:}
+    password: ${DB_PASSWORD:}
+    sqlite-path: ${DB_SQLITE_PATH:./data/database.sqlite}
+  registration:
+    enabled: ${REGISTRATION_ENABLED:true}
+    allowed-domains: ${REGISTRATION_ALLOWED_DOMAINS:}
+    invite-domains: ${REGISTRATION_INVITE_DOMAINS:}
+  session:
+    lifetime: ${SESSION_LIFETIME:604800}
+    cookie-name: ${SESSION_COOKIE_NAME:xcstring_session}
+    cookie-secure: ${SESSION_COOKIE_SECURE:false}
+    cookie-httponly: ${SESSION_COOKIE_HTTPONLY:true}
+  files:
+    max-file-size: ${FILES_MAX_FILE_SIZE:10485760}
+    max-files-per-user: ${FILES_MAX_FILES_PER_USER:100}
+  oauth2:
+    enabled: ${OAUTH2_ENABLED:false}
+    google:
+      enabled: ${OAUTH2_GOOGLE_ENABLED:false}
+      client-id: ${OAUTH2_GOOGLE_CLIENT_ID:}
+      client-secret: ${OAUTH2_GOOGLE_CLIENT_SECRET:}
+    github:
+      enabled: ${OAUTH2_GITHUB_ENABLED:false}
+      client-id: ${OAUTH2_GITHUB_CLIENT_ID:}
+      client-secret: ${OAUTH2_GITHUB_CLIENT_SECRET:}
+    microsoft:
+      enabled: ${OAUTH2_MICROSOFT_ENABLED:false}
+      client-id: ${OAUTH2_MICROSOFT_CLIENT_ID:}
+      client-secret: ${OAUTH2_MICROSOFT_CLIENT_SECRET:}
+      tenant: ${OAUTH2_MICROSOFT_TENANT:common}
+    gitlab:
+      enabled: ${OAUTH2_GITLAB_ENABLED:false}
+      client-id: ${OAUTH2_GITLAB_CLIENT_ID:}
+      client-secret: ${OAUTH2_GITLAB_CLIENT_SECRET:}
+      instance-url: ${OAUTH2_GITLAB_INSTANCE_URL:https://gitlab.com}
+  ai:
+    enabled: ${AI_ENABLED:false}
+    default-provider: ${AI_DEFAULT_PROVIDER:openai}
+    default-model: ${AI_DEFAULT_MODEL:gpt-4o-mini}
+    openai:
+      enabled: ${OPENAI_ENABLED:false}
+      api-key: ${OPENAI_API_KEY:}
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+      models: ${OPENAI_MODELS:gpt-5.2,gpt-5-mini,gpt-5.2-pro}
+    anthropic:
+      enabled: ${ANTHROPIC_ENABLED:false}
+      api-key: ${ANTHROPIC_API_KEY:}
+      base-url: ${ANTHROPIC_BASE_URL:https://api.anthropic.com}
+      models: ${ANTHROPIC_MODELS:claude-opus-4-6,claude-sonnet-4-5,claude-haiku-4-5}
+    openai-compatible:
+      enabled: ${OPENAI_COMPATIBLE_ENABLED:false}
+      api-key: ${OPENAI_COMPATIBLE_API_KEY:}
+      base-url: ${OPENAI_COMPATIBLE_BASE_URL:}
+      models: ${OPENAI_COMPATIBLE_MODELS:}
+    zai:
+      enabled: ${ZAI_ENABLED:false}
+      api-key: ${ZAI_API_KEY:}
+      base-url: ${ZAI_BASE_URL:https://api.z.ai/api/paas/v4}
+      models: ${ZAI_MODELS:glm-5,glm-4.7}
+    deepl:
+      enabled: ${DEEPL_ENABLED:false}
+      api-key: ${DEEPL_API_KEY:}
+      base-url: ${DEEPL_BASE_URL:https://api.deepl.com}
+      models: ${DEEPL_MODELS:latency_optimized,quality_optimized,prefer_quality_optimized}
+  app:
+    name: ${APP_NAME:XCString Editor}
+    debug: ${APP_DEBUG:false}
+    base-url: ${APP_BASE_URL:http://localhost:8080}

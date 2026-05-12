@@ -1,51 +1,43 @@
 version: '3.8'
 
 services:
-  xcstring-editor:
+  xcstring-java:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8080:80"
+      - "8080:8080"
     volumes:
-      - xcstring_data:/var/www/html/data
+      - xcstring_data:/data
     environment:
       # Database Configuration
-      DB_DRIVER: sqlite
-      DB_SQLITE_PATH: /var/www/html/data/database.sqlite
-      
+      - DB_DRIVER=sqlite
+      - DB_SQLITE_PATH=/data/database.sqlite
+
       # Application Settings
-      APP_NAME: "XCString Editor (Local)"
-      APP_DEBUG: "false"
-      
+      - APP_NAME=XCString Editor (Java Local)
+      - APP_DEBUG=false
+
       # User Registration
-      REGISTRATION_ENABLED: "true"
-      # REGISTRATION_ALLOWED_DOMAINS: "example.com,yourcompany.com"  # Uncomment to restrict domains
-      
+      - REGISTRATION_ENABLED=true
+
       # Session Configuration
-      SESSION_LIFETIME: "604800"  # 7 days
-      SESSION_COOKIE_SECURE: "false"  # Set to true for HTTPS
-      
+      - SESSION_LIFETIME=604800
+      - SESSION_COOKIE_SECURE=false
+
       # File Storage
-      FILES_MAX_FILE_SIZE: "10485760"  # 10MB
-      FILES_MAX_FILES_PER_USER: "100"
-      
-      # OAuth2 Configuration (uncomment and configure as needed)
-      # OAUTH2_ENABLED: "true"
-      # OAUTH2_BASE_URL: "http://localhost:8080"
-      # OAUTH2_GOOGLE_ENABLED: "true"
-      # OAUTH2_GOOGLE_CLIENT_ID: "your-google-client-id"
-      # OAUTH2_GOOGLE_CLIENT_SECRET: "your-google-client-secret"
-      
+      - FILES_MAX_FILE_SIZE=10485760
+      - FILES_MAX_FILES_PER_USER=100
+
       # AI Configuration (uncomment and configure as needed)
-      # AI_ENABLED: "true"
-      # AI_DEFAULT_PROVIDER: "openai"
-      # AI_DEFAULT_MODEL: "gpt-4o-mini"
-      # OPENAI_ENABLED: "true"
-      # OPENAI_API_KEY: "your-openai-api-key"
+      # - AI_ENABLED=true
+      # - AI_DEFAULT_PROVIDER=openai
+      # - OPENAI_ENABLED=true
+      # - OPENAI_API_KEY=your-openai-api-key
+
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/backend/index.php/test"]
       interval: 30s
       timeout: 10s
       retries: 3

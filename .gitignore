@@ -24,3 +24,5 @@ Thumbs.db
 
 # Test helper files
 tests/helpers/
+
+target/
