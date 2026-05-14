@@ -1,6 +1,6 @@
 # XCString Editor
 
-A web-based editor for Apple's .xcstrings localization files with user management and file sharing capabilities.
+A web-based editor for Apple's .xcstrings localization files with user management, file sharing, and AI-powered translation capabilities.
 
 ## License
 
@@ -32,33 +32,10 @@ The AGPL-3.0 ensures that any modifications or improvements to this software, in
 - File versioning and history
 - Public file discovery
 
-## Project Structure
-
-```
-xcstringtool/
-├── backend/
-│   ├── index.php          # Main API router
-│   ├── Database.php       # Database abstraction layer
-│   ├── Auth.php          # Authentication system
-│   ├── FileManager.php   # File storage and sharing
-│   └── schema.sql        # Database schema
-├── public/
-│   ├── index.html        # Main web interface
-│   ├── styles.css        # CSS styling
-│   └── script.js         # Frontend JavaScript
-├── config.php            # Configuration file
-├── data/                 # SQLite database storage (auto-created)
-├── Dockerfile           # Docker configuration
-├── package.json         # Project configuration
-└── README.md           # This file
-```
-
 ## Requirements
 
-- PHP 8.0+ with extensions:
-  - JSON
-  - PDO
-  - SQLite3 (for SQLite) / MySQL (for MySQL) / PostgreSQL (for PostgreSQL)
+- Java 21+
+- Maven 3.8+
 - Modern web browser
 - Database (SQLite/MySQL/PostgreSQL)
 
@@ -68,7 +45,13 @@ xcstringtool/
 
 ```bash
 docker build -t xcstring-editor .
-docker run -p 8080:80 xcstring-editor
+docker run -p 8080:8080 xcstring-editor
+```
+
+Or with Docker Compose:
+
+```bash
+docker-compose up
 ```
 
 ### Option 2: Manual Setup
@@ -79,57 +62,61 @@ docker run -p 8080:80 xcstring-editor
    cd xcstringtool
    ```
 
-2. Configure the database in `config.php`:
-   ```php
-   // For SQLite (default)
-   'database' => [
-       'driver' => 'sqlite',
-       'sqlite_path' => __DIR__ . '/data/database.sqlite',
-   ],
-   
-   // For MySQL
-   'database' => [
-       'driver' => 'mysql',
-       'host' => 'localhost',
-       'port' => 3306,
-       'database' => 'xcstring_editor',
-       'username' => 'your_username',
-       'password' => 'your_password',
-   ],
+2. Configure the database via environment variables or `backend/src/main/resources/application.yml`.
+
+   For SQLite (default), no additional configuration is needed. For MySQL or PostgreSQL, set:
+   ```bash
+   export DB_DRIVER=mysql        # or 'postgres'
+   export DB_HOST=localhost
+   export DB_PORT=3306
+   export DB_NAME=xcstring_editor
+   export DB_USERNAME=your_username
+   export DB_PASSWORD=your_password
    ```
 
-3. Start the development server:
+3. Build and run with Maven:
    ```bash
-   php -S localhost:8080 -t public
+   cd backend
+   mvn spring-boot:run
    ```
 
 4. Open your browser and visit: http://localhost:8080
 
 ## Configuration
 
-Edit `config.php` to customize:
+All configuration is managed through `application.yml` and can be overridden via environment variables.
 
 ### Database Settings
-- **driver**: `sqlite`, `mysql`, or `postgres`
-- **connection parameters**: host, port, database name, credentials
+- **DB_DRIVER**: `sqlite`, `mysql`, or `postgres` (default: `sqlite`)
+- **DB_HOST**, **DB_PORT**, **DB_NAME**: Connection parameters for MySQL/PostgreSQL
+- **DB_USERNAME**, **DB_PASSWORD**: Database credentials
+- **DB_SQLITE_PATH**: Path to SQLite database file (default: `./data/database.sqlite`)
 
 ### User Registration
-- **enabled**: Enable/disable new user registration
-- **allowed_domains**: Restrict registration to specific email domains
-- **require_email_verification**: Future feature for email verification
+- **REGISTRATION_ENABLED**: Enable/disable new user registration (default: `true`)
+- **REGISTRATION_ALLOWED_DOMAINS**: Restrict registration to specific email domains
+- **REGISTRATION_INVITE_DOMAINS**: Restrict registration to invite-only domains
 
 ### File Limits
-- **max_file_size**: Maximum file size (default: 10MB)
-- **max_files_per_user**: Maximum files per user (default: 100)
+- **FILES_MAX_FILE_SIZE**: Maximum file size in bytes (default: 10MB)
+- **FILES_MAX_FILES_PER_USER**: Maximum files per user (default: 100)
 
 ### Session Settings
-- **lifetime**: Session duration (default: 7 days)
-- **cookie settings**: Security options for session cookies
+- **SESSION_LIFETIME**: Session duration in seconds (default: 604800 / 7 days)
+- **SESSION_COOKIE_NAME**: Session cookie name
+- **SESSION_COOKIE_SECURE**: Enable secure cookies (default: `false`)
+- **SESSION_COOKIE_HTTPONLY**: Enable HTTP-only cookies (default: `true`)
+
+### AI Integration
+- **AI_ENABLED**: Enable/disable AI features (default: `false`)
+- **AI_DEFAULT_PROVIDER**: Default AI provider (`openai`, `anthropic`, `openai-compatible`, `zai`, `deepl`)
+- **AI_DEFAULT_MODEL**: Default model to use
+- Provider-specific settings: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc.
 
 ### OAuth2 Authentication
-- **enabled**: Enable/disable OAuth2 authentication
-- **base_url**: Your application's base URL for OAuth2 redirects
-- **providers**: Configure OAuth2 providers (Google, GitHub, Microsoft, GitLab)
+- **OAUTH2_ENABLED**: Enable/disable OAuth2 authentication (default: `false`)
+- **APP_BASE_URL**: Your application's base URL for OAuth2 redirects
+- Provider-specific settings: See [OAuth2 Setup Guide](#oauth2-setup-guide)
 
 ## Usage
 
@@ -153,6 +140,8 @@ Edit `config.php` to customize:
 - **Public files**: Make files visible to all users
 
 ## API Endpoints
+
+All endpoints use the `/backend/index.php/` prefix for backward compatibility with the frontend.
 
 ### Authentication
 - `POST /backend/index.php/auth/register` - User registration
@@ -192,9 +181,13 @@ Edit `config.php` to customize:
 - Enterprise-grade reliability
 - Requires separate database server
 
+### Migrations
+
+Database schema is managed by [Flyway](https://flywaydb.org/) migrations located in `backend/src/main/resources/db/migration/`. Migrations run automatically on application startup. No manual schema setup is required.
+
 ## Security Features
 
-- Password hashing with PHP's `password_hash()`
+- Password hashing with BCrypt (Spring Security Crypto)
 - Session-based authentication
 - CSRF protection via proper HTTP methods
 - Input validation and sanitization
@@ -204,18 +197,30 @@ Edit `config.php` to customize:
 ## Development
 
 The application uses:
-- **Backend**: PHP with PDO for database abstraction
+- **Backend**: Java 21 + Spring Boot 3.4.5 + Maven
+- **ORM**: Spring Data JPA / Hibernate
+- **Migrations**: Flyway
 - **Frontend**: Vanilla JavaScript with modern ES6+ features
 - **Styling**: CSS Grid and Flexbox for responsive layout
 - **Database**: Multi-engine support (SQLite/MySQL/PostgreSQL)
 
+### Running Tests
+
+```bash
+cd backend
+mvn test                  # Run all tests
+mvn test -Dtest=AuthControllerTest  # Run specific test class
+```
+
+Tests use JUnit 5, Spring Boot Test, MockMvc, and an H2 in-memory database.
+
 ### Extending the Application
 
 #### Backend Changes
-- `backend/index.php` - Main API router
-- `backend/Auth.php` - Authentication logic
-- `backend/FileManager.php` - File operations
-- `backend/Database.php` - Database abstraction
+- `backend/src/main/java/com/xcstring/editor/controller/` - REST controllers
+- `backend/src/main/java/com/xcstring/editor/service/` - Business logic
+- `backend/src/main/java/com/xcstring/editor/entity/` - JPA entities
+- `backend/src/main/java/com/xcstring/editor/repository/` - Data access
 
 #### Frontend Changes
 - `public/script.js` - Application logic
@@ -223,8 +228,9 @@ The application uses:
 - `public/index.html` - HTML structure
 
 #### Database Changes
-- `backend/schema.sql` - Database schema
-- `config.php` - Configuration options
+- Add new Flyway migrations in `backend/src/main/resources/db/migration/`
+- Follow the naming convention: `V{N}__Description.sql` (e.g., `V11__Add_new_table.sql`)
+- Migrations run automatically on next application startup
 
 ## OAuth2 Setup Guide
 
@@ -233,19 +239,16 @@ XCString Editor supports OAuth2 authentication with popular providers. This allo
 ### Supported Providers
 
 - **Google** - Gmail/Google Workspace accounts
-- **GitHub** - GitHub accounts  
+- **GitHub** - GitHub accounts
 - **Microsoft** - Microsoft/Azure AD accounts
 - **GitLab** - GitLab.com or self-hosted GitLab
 
 ### Configuration Steps
 
-1. **Enable OAuth2** in `config.php`:
-   ```php
-   'oauth2' => [
-       'enabled' => true,
-       'base_url' => 'https://your-domain.com', // Your app's URL
-       // ...
-   ]
+1. **Enable OAuth2** via environment variables:
+   ```bash
+   export OAUTH2_ENABLED=true
+   export APP_BASE_URL=https://your-domain.com
    ```
 
 2. **Configure each provider** you want to support:
@@ -259,14 +262,11 @@ XCString Editor supports OAuth2 authentication with popular providers. This allo
 5. Choose "Web application"
 6. Add authorized redirect URIs:
    - `https://your-domain.com/backend/index.php/auth/oauth/google/callback`
-7. Copy the Client ID and Client Secret to `config.php`:
-   ```php
-   'google' => [
-       'enabled' => true,
-       'client_id' => 'your-google-client-id',
-       'client_secret' => 'your-google-client-secret',
-       'redirect_uri' => 'https://your-domain.com/backend/index.php/auth/oauth/google/callback',
-   ],
+7. Set the environment variables:
+   ```bash
+   export OAUTH2_GOOGLE_ENABLED=true
+   export OAUTH2_GOOGLE_CLIENT_ID=your-google-client-id
+   export OAUTH2_GOOGLE_CLIENT_SECRET=your-google-client-secret
    ```
 
 #### GitHub OAuth2 Setup
@@ -277,14 +277,11 @@ XCString Editor supports OAuth2 authentication with popular providers. This allo
    - Application name: `XCString Editor`
    - Homepage URL: `https://your-domain.com`
    - Authorization callback URL: `https://your-domain.com/backend/index.php/auth/oauth/github/callback`
-4. Copy the Client ID and Client Secret to `config.php`:
-   ```php
-   'github' => [
-       'enabled' => true,
-       'client_id' => 'your-github-client-id',
-       'client_secret' => 'your-github-client-secret',
-       'redirect_uri' => 'https://your-domain.com/backend/index.php/auth/oauth/github/callback',
-   ],
+4. Set the environment variables:
+   ```bash
+   export OAUTH2_GITHUB_ENABLED=true
+   export OAUTH2_GITHUB_CLIENT_ID=your-github-client-id
+   export OAUTH2_GITHUB_CLIENT_SECRET=your-github-client-secret
    ```
 
 #### Microsoft OAuth2 Setup
@@ -296,15 +293,12 @@ XCString Editor supports OAuth2 authentication with popular providers. This allo
    - Supported account types: Choose based on your needs
    - Redirect URI: `Web` → `https://your-domain.com/backend/index.php/auth/oauth/microsoft/callback`
 4. Go to "Certificates & secrets" → "New client secret"
-5. Copy the Application (client) ID and client secret to `config.php`:
-   ```php
-   'microsoft' => [
-       'enabled' => true,
-       'client_id' => 'your-microsoft-client-id',
-       'client_secret' => 'your-microsoft-client-secret',
-       'redirect_uri' => 'https://your-domain.com/backend/index.php/auth/oauth/microsoft/callback',
-       'tenant' => 'common', // or specific tenant ID
-   ],
+5. Set the environment variables:
+   ```bash
+   export OAUTH2_MICROSOFT_ENABLED=true
+   export OAUTH2_MICROSOFT_CLIENT_ID=your-microsoft-client-id
+   export OAUTH2_MICROSOFT_CLIENT_SECRET=your-microsoft-client-secret
+   export OAUTH2_MICROSOFT_TENANT=common    # or specific tenant ID
    ```
 
 #### GitLab OAuth2 Setup
@@ -315,15 +309,12 @@ XCString Editor supports OAuth2 authentication with popular providers. This allo
    - Name: `XCString Editor`
    - Redirect URI: `https://your-domain.com/backend/index.php/auth/oauth/gitlab/callback`
    - Scopes: `read_user`
-4. Copy the Application ID and Secret to `config.php`:
-   ```php
-   'gitlab' => [
-       'enabled' => true,
-       'client_id' => 'your-gitlab-application-id',
-       'client_secret' => 'your-gitlab-secret',
-       'redirect_uri' => 'https://your-domain.com/backend/index.php/auth/oauth/gitlab/callback',
-       'instance_url' => 'https://gitlab.com', // or your GitLab instance URL
-   ],
+4. Set the environment variables:
+   ```bash
+   export OAUTH2_GITLAB_ENABLED=true
+   export OAUTH2_GITLAB_CLIENT_ID=your-gitlab-application-id
+   export OAUTH2_GITLAB_CLIENT_SECRET=your-gitlab-secret
+   export OAUTH2_GITLAB_INSTANCE_URL=https://gitlab.com    # or your GitLab instance URL
    ```
 
 ### Security Considerations
@@ -347,35 +338,35 @@ When OAuth2 is enabled:
 ### Common Issues
 
 1. **Database connection failed**
-   - Check database configuration in `config.php`
+   - Check database configuration via environment variables
    - Ensure database server is running (MySQL/PostgreSQL)
-   - Verify file permissions for SQLite
+   - Verify file permissions for SQLite data directory
 
 2. **File upload fails**
-   - Check PHP file upload limits (`upload_max_filesize`, `post_max_size`)
+   - Check Spring Boot multipart limits (`spring.servlet.multipart.max-file-size`)
    - Verify file permissions on data directory
 
 3. **Session issues**
-   - Check PHP session configuration
-   - Verify cookie settings in `config.php`
+   - Check session cookie configuration via environment variables
+   - Verify `APP_BASE_URL` matches your actual domain
 
 4. **Permission denied errors**
-   - Ensure web server has write permissions to data directory
+   - Ensure the application has write permissions to the data directory
    - Check file ownership and permissions
 
 5. **OAuth2 login fails**
-   - Verify OAuth2 provider configuration in `config.php`
+   - Verify OAuth2 provider configuration via environment variables
    - Check redirect URIs match exactly (including https/http)
-   - Ensure OAuth2 is enabled in configuration
+   - Ensure `OAUTH2_ENABLED=true` and the specific provider is enabled
    - Check OAuth2 provider application settings
 
 6. **OAuth2 callback errors**
-   - Verify the base_url in `config.php` matches your domain
+   - Verify `APP_BASE_URL` matches your domain
    - Check that OAuth2 provider allows your redirect URI
    - Ensure callback URLs use the correct protocol (https in production)
 
 ### Logs
 
-- PHP errors: Check PHP error log
-- Database errors: Enable debug mode in `config.php`
+- Application logs: Check Spring Boot console output or configured log destination
+- Database errors: Set `APP_DEBUG=debug` to enable verbose Hibernate SQL logging
 - Browser console: Check for JavaScript errors

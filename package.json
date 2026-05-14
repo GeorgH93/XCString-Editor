@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "description": "Web-based editor for xcstrings files",
   "scripts": {
-    "dev": "php -S localhost:8080 -t public",
-    "start": "php -S localhost:8080 -t public",
-    "test": "echo 'No tests specified'"
+    "dev": "cd backend && mvn spring-boot:run",
+    "test": "cd backend && mvn test",
+    "build": "cd backend && mvn clean package -DskipTests"
   },
   "keywords": ["xcstrings", "editor", "localization", "ios", "apple"],
   "author": "",
