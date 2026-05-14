@@ -50,7 +50,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/backend/index.php/test"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/api/test"]
       interval: 30s
       timeout: 10s
       retries: 3

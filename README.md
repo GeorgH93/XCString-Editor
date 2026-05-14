@@ -141,28 +141,28 @@ All configuration is managed through `application.yml` and can be overridden via
 
 ## API Endpoints
 
-All endpoints use the `/backend/index.php/` prefix for backward compatibility with the frontend.
+All endpoints use the `/api/` prefix for backward compatibility with the frontend.
 
 ### Authentication
-- `POST /backend/index.php/auth/register` - User registration
-- `POST /backend/index.php/auth/login` - User login
-- `POST /backend/index.php/auth/logout` - User logout
-- `GET /backend/index.php/auth/user` - Get current user info
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
+- `POST /api/auth/logout` - User logout
+- `GET /api/auth/user` - Get current user info
 
 ### File Management
-- `GET /backend/index.php/files/my` - Get user's files
-- `GET /backend/index.php/files/shared` - Get files shared with user
-- `GET /backend/index.php/files/public` - Get public files
-- `GET /backend/index.php/files/{id}` - Get specific file
-- `POST /backend/index.php/files/save` - Save new file
-- `POST /backend/index.php/files/update` - Update existing file
-- `POST /backend/index.php/files/share` - Share file with user
-- `DELETE /backend/index.php/files/{id}` - Delete file
+- `GET /api/files/my` - Get user's files
+- `GET /api/files/shared` - Get files shared with user
+- `GET /api/files/public` - Get public files
+- `GET /api/files/{id}` - Get specific file
+- `POST /api/files/save` - Save new file
+- `POST /api/files/update` - Update existing file
+- `POST /api/files/share` - Share file with user
+- `DELETE /api/files/{id}` - Delete file
 
 ### XCString Processing
-- `POST /backend/index.php/parse` - Parse xcstrings content
-- `POST /backend/index.php/generate` - Generate xcstrings from data
-- `GET /backend/index.php/test` - Test API connectivity
+- `POST /api/parse` - Parse xcstrings content
+- `POST /api/generate` - Generate xcstrings from data
+- `GET /api/test` - Test API connectivity
 
 ## Database Support
 
@@ -261,7 +261,7 @@ XCString Editor supports OAuth2 authentication with popular providers. This allo
 4. Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client IDs"
 5. Choose "Web application"
 6. Add authorized redirect URIs:
-   - `https://your-domain.com/backend/index.php/auth/oauth/google/callback`
+   - `https://your-domain.com/api/auth/oauth/google/callback`
 7. Set the environment variables:
    ```bash
    export OAUTH2_GOOGLE_ENABLED=true
@@ -276,7 +276,7 @@ XCString Editor supports OAuth2 authentication with popular providers. This allo
 3. Fill in the details:
    - Application name: `XCString Editor`
    - Homepage URL: `https://your-domain.com`
-   - Authorization callback URL: `https://your-domain.com/backend/index.php/auth/oauth/github/callback`
+   - Authorization callback URL: `https://your-domain.com/api/auth/oauth/github/callback`
 4. Set the environment variables:
    ```bash
    export OAUTH2_GITHUB_ENABLED=true
@@ -291,7 +291,7 @@ XCString Editor supports OAuth2 authentication with popular providers. This allo
 3. Fill in the details:
    - Name: `XCString Editor`
    - Supported account types: Choose based on your needs
-   - Redirect URI: `Web` → `https://your-domain.com/backend/index.php/auth/oauth/microsoft/callback`
+   - Redirect URI: `Web` → `https://your-domain.com/api/auth/oauth/microsoft/callback`
 4. Go to "Certificates & secrets" → "New client secret"
 5. Set the environment variables:
    ```bash
@@ -307,7 +307,7 @@ XCString Editor supports OAuth2 authentication with popular providers. This allo
 2. Click "Add new application"
 3. Fill in the details:
    - Name: `XCString Editor`
-   - Redirect URI: `https://your-domain.com/backend/index.php/auth/oauth/gitlab/callback`
+   - Redirect URI: `https://your-domain.com/api/auth/oauth/gitlab/callback`
    - Scopes: `read_user`
 4. Set the environment variables:
    ```bash

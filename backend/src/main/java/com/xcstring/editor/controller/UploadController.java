@@ -9,7 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/backend/index.php")
+@RequestMapping("/api")
 @RequiredArgsConstructor
 public class UploadController {
 

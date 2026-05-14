@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.*;
 
 @RestController
-@RequestMapping("/backend/index.php")
+@RequestMapping("/api")
 @RequiredArgsConstructor
 public class AIController {
 

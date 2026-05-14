@@ -60,7 +60,7 @@ class CustomProviderIntegrationTest {
 
     @Test
     void customProviderAppearsInAuthUserEndpoint() throws Exception {
-        mockMvc.perform(get("/backend/index.php/auth/user"))
+        mockMvc.perform(get("/api/auth/user"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.config.oauth2_enabled").value(true))
                 .andExpect(jsonPath("$.config.oauth2_providers", hasSize(greaterThanOrEqualTo(1))))

@@ -26,7 +26,7 @@ class AuthControllerTest {
     @BeforeEach
     void setUp() throws Exception {
         // Clean up - try to logout any existing session
-        mockMvc.perform(post("/backend/index.php/auth/logout"));
+        mockMvc.perform(post("/api/auth/logout"));
     }
 
     @Test
@@ -39,7 +39,7 @@ class AuthControllerTest {
             }
             """;
 
-        mockMvc.perform(post("/backend/index.php/auth/register")
+        mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
             .andExpect(status().isOk())
@@ -57,7 +57,7 @@ class AuthControllerTest {
             }
             """;
 
-        mockMvc.perform(post("/backend/index.php/auth/register")
+        mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
             .andExpect(status().isBadRequest())
@@ -73,7 +73,7 @@ class AuthControllerTest {
             }
             """;
 
-        mockMvc.perform(post("/backend/index.php/auth/register")
+        mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
             .andExpect(status().isBadRequest())
@@ -91,7 +91,7 @@ class AuthControllerTest {
             }
             """;
 
-        mockMvc.perform(post("/backend/index.php/auth/register")
+        mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
             .andExpect(status().isOk());
@@ -105,7 +105,7 @@ class AuthControllerTest {
             }
             """;
 
-        mockMvc.perform(post("/backend/index.php/auth/register")
+        mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody2))
             .andExpect(status().isBadRequest())
@@ -123,7 +123,7 @@ class AuthControllerTest {
             }
             """;
 
-        mockMvc.perform(post("/backend/index.php/auth/register")
+        mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(registerBody))
             .andExpect(status().isOk());
@@ -136,7 +136,7 @@ class AuthControllerTest {
             }
             """;
 
-        MvcResult result = mockMvc.perform(post("/backend/index.php/auth/login")
+        MvcResult result = mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(loginBody))
             .andExpect(status().isOk())
@@ -162,7 +162,7 @@ class AuthControllerTest {
             }
             """;
 
-        mockMvc.perform(post("/backend/index.php/auth/register")
+        mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(registerBody))
             .andExpect(status().isOk());
@@ -175,7 +175,7 @@ class AuthControllerTest {
             }
             """;
 
-        mockMvc.perform(post("/backend/index.php/auth/login")
+        mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(loginBody))
             .andExpect(status().isBadRequest())
@@ -191,7 +191,7 @@ class AuthControllerTest {
             }
             """;
 
-        mockMvc.perform(post("/backend/index.php/auth/login")
+        mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(loginBody))
             .andExpect(status().isBadRequest())
@@ -209,7 +209,7 @@ class AuthControllerTest {
             }
             """;
 
-        mockMvc.perform(post("/backend/index.php/auth/register")
+        mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(registerBody))
             .andExpect(status().isOk());
@@ -221,7 +221,7 @@ class AuthControllerTest {
             }
             """;
 
-        MvcResult loginResult = mockMvc.perform(post("/backend/index.php/auth/login")
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(loginBody))
             .andExpect(status().isOk())
@@ -230,7 +230,7 @@ class AuthControllerTest {
         Cookie sessionCookie = loginResult.getResponse().getCookie("xcstring_session");
 
         // Logout
-        mockMvc.perform(post("/backend/index.php/auth/logout")
+        mockMvc.perform(post("/api/auth/logout")
                 .cookie(sessionCookie))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true));
@@ -238,7 +238,7 @@ class AuthControllerTest {
 
     @Test
     void testGetUserNoAuth() throws Exception {
-        mockMvc.perform(get("/backend/index.php/auth/user"))
+        mockMvc.perform(get("/api/auth/user"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.user").isEmpty())
@@ -259,7 +259,7 @@ class AuthControllerTest {
             }
             """;
 
-        mockMvc.perform(post("/backend/index.php/auth/register")
+        mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(registerBody))
             .andExpect(status().isOk());
@@ -271,7 +271,7 @@ class AuthControllerTest {
             }
             """;
 
-        MvcResult loginResult = mockMvc.perform(post("/backend/index.php/auth/login")
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(loginBody))
             .andExpect(status().isOk())
@@ -280,7 +280,7 @@ class AuthControllerTest {
         Cookie sessionCookie = loginResult.getResponse().getCookie("xcstring_session");
 
         // Get user info
-        mockMvc.perform(get("/backend/index.php/auth/user")
+        mockMvc.perform(get("/api/auth/user")
                 .cookie(sessionCookie))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
@@ -292,7 +292,7 @@ class AuthControllerTest {
 
     @Test
     void testValidateInviteTokenInvalid() throws Exception {
-        mockMvc.perform(get("/backend/index.php/auth/invites/validate/invalidtoken123"))
+        mockMvc.perform(get("/api/auth/invites/validate/invalidtoken123"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.valid").value(false));
@@ -300,7 +300,7 @@ class AuthControllerTest {
 
     @Test
     void testValidateInviteTokenWithEmail() throws Exception {
-        mockMvc.perform(get("/backend/index.php/auth/invites/validate/invalidtoken123")
+        mockMvc.perform(get("/api/auth/invites/validate/invalidtoken123")
                 .param("email", "test@example.com"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
@@ -309,7 +309,7 @@ class AuthControllerTest {
 
     @Test
     void testTestEndpoint() throws Exception {
-        mockMvc.perform(get("/backend/index.php/test"))
+        mockMvc.perform(get("/api/test"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("XCString Tool API is working"));
@@ -325,7 +325,7 @@ class AuthControllerTest {
             }
             """, email, name, password);
 
-        mockMvc.perform(post("/backend/index.php/auth/register")
+        mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(registerBody))
             .andExpect(status().isOk());
@@ -337,7 +337,7 @@ class AuthControllerTest {
             }
             """, email, password);
 
-        MvcResult loginResult = mockMvc.perform(post("/backend/index.php/auth/login")
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(loginBody))
             .andExpect(status().isOk())

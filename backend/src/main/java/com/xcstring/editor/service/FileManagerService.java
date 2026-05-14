@@ -436,7 +436,7 @@ public class FileManagerService {
         url.setCommentPrefix(commentPrefix);
         presignedUrlRepository.save(url);
         
-        String uploadUrl = properties.getApp().getBaseUrl() + "/backend/index.php/upload/" + token;
+        String uploadUrl = properties.getApp().getBaseUrl() + "/api/upload/" + token;
         
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("token", token);

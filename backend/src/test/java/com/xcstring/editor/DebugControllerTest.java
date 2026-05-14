@@ -25,7 +25,7 @@ class DebugControllerTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        mockMvc.perform(post("/backend/index.php/auth/logout"));
+        mockMvc.perform(post("/api/auth/logout"));
     }
 
     private Cookie registerAndLogin(String email, String name, String password) throws Exception {
@@ -37,7 +37,7 @@ class DebugControllerTest {
             }
             """, email, name, password);
 
-        mockMvc.perform(post("/backend/index.php/auth/register")
+        mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(registerBody))
             .andExpect(status().isOk());
@@ -49,7 +49,7 @@ class DebugControllerTest {
             }
             """, email, password);
 
-        MvcResult loginResult = mockMvc.perform(post("/backend/index.php/auth/login")
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(loginBody))
             .andExpect(status().isOk())
@@ -60,7 +60,7 @@ class DebugControllerTest {
 
     @Test
     void testDebugInvitesNoAuth() throws Exception {
-        mockMvc.perform(get("/backend/index.php/debug/invites"))
+        mockMvc.perform(get("/api/debug/invites"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.debug").exists())
@@ -73,7 +73,7 @@ class DebugControllerTest {
     void testDebugInvitesWithAuth() throws Exception {
         Cookie cookie = registerAndLogin("debug@example.com", "Debug User", "password123");
 
-        mockMvc.perform(get("/backend/index.php/debug/invites")
+        mockMvc.perform(get("/api/debug/invites")
                 .cookie(cookie))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
@@ -88,7 +88,7 @@ class DebugControllerTest {
 
     @Test
     void testTestEndpoint() throws Exception {
-        mockMvc.perform(get("/backend/index.php/test"))
+        mockMvc.perform(get("/api/test"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.message").value("XCString Tool API is working"));

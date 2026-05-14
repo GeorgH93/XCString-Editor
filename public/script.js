@@ -342,7 +342,7 @@ class XCStringEditor {
 
     async checkAuthStatus() {
         try {
-            const response = await fetch('/backend/index.php/auth/user');
+            const response = await fetch('/api/auth/user');
             const result = await response.json();
 
             if (result.success) {
@@ -418,7 +418,7 @@ class XCStringEditor {
             const providerKey = provider.name || provider; // Handle both object and string formats
 
             return `
-                <a href="/backend/index.php/auth/oauth/${providerKey}/redirect" class="oauth2-btn ${providerKey}">
+                <a href="/api/auth/oauth/${providerKey}/redirect" class="oauth2-btn ${providerKey}">
                     ${providerIcon}
                     Continue with ${providerName}
                 </a>
@@ -548,7 +548,7 @@ class XCStringEditor {
         const password = document.getElementById('loginPassword').value;
 
         try {
-            const response = await fetch('/backend/index.php/auth/login', {
+            const response = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
@@ -582,7 +582,7 @@ class XCStringEditor {
         }
 
         try {
-            const response = await fetch('/backend/index.php/auth/register', {
+            const response = await fetch('/api/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -602,7 +602,7 @@ class XCStringEditor {
 
     async logout() {
         try {
-            await fetch('/backend/index.php/auth/logout', { method: 'POST' });
+            await fetch('/api/auth/logout', { method: 'POST' });
             this.currentUser = null;
             this.currentFileId = null;
             this.updateAuthUI();
@@ -659,7 +659,7 @@ class XCStringEditor {
 
     async loadUserFiles() {
         try {
-            const response = await fetch('/backend/index.php/files/my');
+            const response = await fetch('/api/files/my');
             const result = await response.json();
 
             if (result.success) {
@@ -672,7 +672,7 @@ class XCStringEditor {
 
     async loadSharedFiles() {
         try {
-            const response = await fetch('/backend/index.php/files/shared');
+            const response = await fetch('/api/files/shared');
             const result = await response.json();
 
             if (result.success) {
@@ -685,7 +685,7 @@ class XCStringEditor {
 
     async loadPublicFiles() {
         try {
-            const response = await fetch('/backend/index.php/files/public');
+            const response = await fetch('/api/files/public');
             const result = await response.json();
 
             if (result.success) {
@@ -723,7 +723,7 @@ class XCStringEditor {
 
     async loadFile(fileId) {
         try {
-            const response = await fetch(`/backend/index.php/files/${fileId}`);
+            const response = await fetch(`/api/files/${fileId}`);
             const result = await response.json();
 
             if (result.success) {
@@ -756,7 +756,7 @@ class XCStringEditor {
         if (!shouldDelete) return;
 
         try {
-            const response = await fetch(`/backend/index.php/files/${fileId}`, {
+            const response = await fetch(`/api/files/${fileId}`, {
                 method: 'DELETE'
             });
 
@@ -817,7 +817,7 @@ class XCStringEditor {
 
             if (this.currentFileId) {
                 // Update existing file
-                response = await fetch('/backend/index.php/files/update', {
+                response = await fetch('/api/files/update', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -827,7 +827,7 @@ class XCStringEditor {
                 });
             } else {
                 // Save new file
-                response = await fetch('/backend/index.php/files/save', {
+                response = await fetch('/api/files/save', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -864,7 +864,7 @@ class XCStringEditor {
             // Clean AI review data before saving
             const cleanData = this.cleanDataForExport(this.data);
 
-            const response = await fetch('/backend/index.php/files/save', {
+            const response = await fetch('/api/files/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -914,7 +914,7 @@ class XCStringEditor {
         );
 
         try {
-            const response = await fetch('/backend/index.php/files/share', {
+            const response = await fetch('/api/files/share', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -965,7 +965,7 @@ class XCStringEditor {
     async processFile(file) {
         try {
             const content = await this.readFile(file);
-            const response = await fetch('/backend/index.php/parse', {
+            const response = await fetch('/api/parse', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content })
@@ -2582,7 +2582,7 @@ class XCStringEditor {
             this.data = this.fixParsedData(this.data);
             const cleanData = this.cleanDataForExport(this.data);
 
-            const response = await fetch('/backend/index.php/generate', {
+            const response = await fetch('/api/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ data: cleanData })
@@ -2954,7 +2954,7 @@ class XCStringEditor {
     }
 
     async translateText(text, sourceLanguage, targetLanguage, stringKey) {
-        const response = await fetch('/backend/index.php/ai/translate', {
+        const response = await fetch('/api/ai/translate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -2977,7 +2977,7 @@ class XCStringEditor {
     }
 
     async proofreadText(text, language, stringKey) {
-        const response = await fetch('/backend/index.php/ai/proofread', {
+        const response = await fetch('/api/ai/proofread', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -3069,7 +3069,7 @@ class XCStringEditor {
 
     async batchTranslateText(items, sourceLanguage, targetLanguage) {
         return await this.retryWithBackoff(async () => {
-            const response = await fetch('/backend/index.php/ai/batch-translate', {
+            const response = await fetch('/api/ai/batch-translate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -3092,7 +3092,7 @@ class XCStringEditor {
 
     async batchProofreadText(items, language) {
         return await this.retryWithBackoff(async () => {
-            const response = await fetch('/backend/index.php/ai/batch-proofread', {
+            const response = await fetch('/api/ai/batch-proofread', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -3610,7 +3610,7 @@ class XCStringEditor {
 
         try {
             // Load versions first
-            const versionsResponse = await fetch(`/backend/index.php/files/${this.currentFileId}/versions`);
+            const versionsResponse = await fetch(`/api/files/${this.currentFileId}/versions`);
             const versionsResult = await versionsResponse.json();
 
             if (!versionsResult.success) {
@@ -3626,7 +3626,7 @@ class XCStringEditor {
             };
 
             try {
-                const statsResponse = await fetch(`/backend/index.php/files/${this.currentFileId}/version-stats`);
+                const statsResponse = await fetch(`/api/files/${this.currentFileId}/version-stats`);
                 const statsResult = await statsResponse.json();
 
                 if (statsResult.success && statsResult.stats) {
@@ -3670,7 +3670,7 @@ class XCStringEditor {
 
         try {
             // Load current shares and pending shares
-            const response = await fetch(`/backend/index.php/files/${this.currentFileId}/shares`);
+            const response = await fetch(`/api/files/${this.currentFileId}/shares`);
             const result = await response.json();
 
             if (!result.success) {
@@ -3751,8 +3751,8 @@ class XCStringEditor {
 
         try {
             const endpoint = type === 'current'
-                ? `/backend/index.php/files/${this.currentFileId}/shares/${shareId}`
-                : `/backend/index.php/files/${this.currentFileId}/pending-shares/${shareId}`;
+                ? `/api/files/${this.currentFileId}/shares/${shareId}`
+                : `/api/files/${this.currentFileId}/pending-shares/${shareId}`;
 
             const response = await fetch(endpoint, {
                 method: 'DELETE'
@@ -3778,7 +3778,7 @@ class XCStringEditor {
         }
 
         try {
-            const response = await fetch('/backend/index.php/files/update-share-permissions', {
+            const response = await fetch('/api/files/update-share-permissions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -3811,7 +3811,7 @@ class XCStringEditor {
         }
 
         try {
-            const response = await fetch('/backend/index.php/files/share', {
+            const response = await fetch('/api/files/share', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -3903,7 +3903,7 @@ class XCStringEditor {
             formData.append('file', file);
             formData.append('comment', this.versionComment.value || 'Uploaded new version');
 
-            const response = await fetch(`/backend/index.php/files/${this.currentFileId}/upload-version`, {
+            const response = await fetch(`/api/files/${this.currentFileId}/upload-version`, {
                 method: 'POST',
                 body: formData
             });
@@ -3963,7 +3963,7 @@ class XCStringEditor {
         }
 
         try {
-            const response = await fetch(`/backend/index.php/files/${this.currentFileId}/generate-upload-url`, {
+            const response = await fetch(`/api/files/${this.currentFileId}/generate-upload-url`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -4007,7 +4007,7 @@ class XCStringEditor {
         if (!this.currentFileId) return;
 
         try {
-            const response = await fetch(`/backend/index.php/files/${this.currentFileId}/upload-urls`);
+            const response = await fetch(`/api/files/${this.currentFileId}/upload-urls`);
             const result = await response.json();
 
             if (result.success) {
@@ -4072,7 +4072,7 @@ class XCStringEditor {
 
     buildUploadUrl(token) {
         const baseUrl = window.location.origin;
-        return `${baseUrl}/backend/index.php/upload/${token}`;
+        return `${baseUrl}/api/upload/${token}`;
     }
 
     async revokePresignedUrl(urlId) {
@@ -4084,7 +4084,7 @@ class XCStringEditor {
         if (!confirmed) return;
 
         try {
-            const response = await fetch(`/backend/index.php/files/${this.currentFileId}/upload-urls/${urlId}`, {
+            const response = await fetch(`/api/files/${this.currentFileId}/upload-urls/${urlId}`, {
                 method: 'DELETE'
             });
 
@@ -4209,7 +4209,7 @@ class XCStringEditor {
         }
 
         try {
-            const response = await fetch(`/backend/index.php/files/${this.currentFileId}/versions/${versionNumber}`);
+            const response = await fetch(`/api/files/${this.currentFileId}/versions/${versionNumber}`);
             const result = await response.json();
 
             if (result.success) {
@@ -4250,7 +4250,7 @@ class XCStringEditor {
         if (comment === null) return;
 
         try {
-            const response = await fetch(`/backend/index.php/files/${this.currentFileId}/revert`, {
+            const response = await fetch(`/api/files/${this.currentFileId}/revert`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -4285,7 +4285,7 @@ class XCStringEditor {
         if (!shouldDelete) return;
 
         try {
-            const response = await fetch(`/backend/index.php/files/${this.currentFileId}/versions/${versionNumber}`, {
+            const response = await fetch(`/api/files/${this.currentFileId}/versions/${versionNumber}`, {
                 method: 'DELETE'
             });
 
@@ -4367,7 +4367,7 @@ class XCStringEditor {
                 payload.email = email;
             }
 
-            const response = await fetch('/backend/index.php/auth/invites/create', {
+            const response = await fetch('/api/auth/invites/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -4394,7 +4394,7 @@ class XCStringEditor {
         if (!this.currentUser) return;
 
         try {
-            const response = await fetch('/backend/index.php/auth/invites/my');
+            const response = await fetch('/api/auth/invites/my');
             const result = await response.json();
 
             if (result.success) {
@@ -4463,7 +4463,7 @@ class XCStringEditor {
 
             if (!confirmed) return;
 
-            const response = await fetch(`/backend/index.php/auth/invites/${inviteId}`, {
+            const response = await fetch(`/api/auth/invites/${inviteId}`, {
                 method: 'DELETE'
             });
 

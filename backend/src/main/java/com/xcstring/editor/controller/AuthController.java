@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/backend/index.php")
+@RequestMapping("/api")
 @RequiredArgsConstructor
 public class AuthController {
 

@@ -32,7 +32,7 @@ class XCStringsControllerTest {
     void testParseValidXcstrings() throws Exception {
         String requestBody = objectMapper.writeValueAsString(Map.of("content", VALID_XCSTRINGS));
 
-        mockMvc.perform(post("/backend/index.php/parse")
+        mockMvc.perform(post("/api/parse")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
             .andExpect(status().isOk())
@@ -47,7 +47,7 @@ class XCStringsControllerTest {
     void testParseInvalidJson() throws Exception {
         String requestBody = objectMapper.writeValueAsString(Map.of("content", "{invalid json}"));
 
-        mockMvc.perform(post("/backend/index.php/parse")
+        mockMvc.perform(post("/api/parse")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
             .andExpect(status().isBadRequest())
@@ -58,7 +58,7 @@ class XCStringsControllerTest {
     void testParseMissingContent() throws Exception {
         String requestBody = objectMapper.writeValueAsString(Map.of("content", ""));
 
-        mockMvc.perform(post("/backend/index.php/parse")
+        mockMvc.perform(post("/api/parse")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
             .andExpect(status().isBadRequest())
@@ -69,7 +69,7 @@ class XCStringsControllerTest {
     void testParseNoContentField() throws Exception {
         String requestBody = "{}";
 
-        mockMvc.perform(post("/backend/index.php/parse")
+        mockMvc.perform(post("/api/parse")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
             .andExpect(status().isBadRequest())
@@ -96,7 +96,7 @@ class XCStringsControllerTest {
         );
         String requestBody = objectMapper.writeValueAsString(Map.of("data", data));
 
-        mockMvc.perform(post("/backend/index.php/generate")
+        mockMvc.perform(post("/api/generate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
             .andExpect(status().isOk())
@@ -110,7 +110,7 @@ class XCStringsControllerTest {
     void testGenerateMissingData() throws Exception {
         String requestBody = "{}";
 
-        mockMvc.perform(post("/backend/index.php/generate")
+        mockMvc.perform(post("/api/generate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
             .andExpect(status().isBadRequest())
@@ -137,7 +137,7 @@ class XCStringsControllerTest {
         );
         String requestBody = objectMapper.writeValueAsString(Map.of("data", data));
 
-        mockMvc.perform(post("/backend/index.php/generate")
+        mockMvc.perform(post("/api/generate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
             .andExpect(status().isOk())
@@ -152,7 +152,7 @@ class XCStringsControllerTest {
         String multiL10n = "{\"sourceLanguage\":\"en\",\"strings\":{\"welcome\":{\"localizations\":{\"en\":{\"stringUnit\":{\"state\":\"translated\",\"value\":\"Welcome\"}},\"es\":{\"stringUnit\":{\"state\":\"translated\",\"value\":\"Bienvenido\"}},\"fr\":{\"stringUnit\":{\"state\":\"translated\",\"value\":\"Bienvenue\"}}}}},\"version\":\"1.0\"}";
         String requestBody = objectMapper.writeValueAsString(Map.of("content", multiL10n));
 
-        mockMvc.perform(post("/backend/index.php/parse")
+        mockMvc.perform(post("/api/parse")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
             .andExpect(status().isOk())
@@ -167,7 +167,7 @@ class XCStringsControllerTest {
         String withComments = "{\"sourceLanguage\":\"en\",\"strings\":{\"button.submit\":{\"comment\":\"Submit button text\",\"localizations\":{\"en\":{\"stringUnit\":{\"state\":\"translated\",\"value\":\"Submit\"}}}}},\"version\":\"1.0\"}";
         String requestBody = objectMapper.writeValueAsString(Map.of("content", withComments));
 
-        mockMvc.perform(post("/backend/index.php/parse")
+        mockMvc.perform(post("/api/parse")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
             .andExpect(status().isOk())
@@ -179,7 +179,7 @@ class XCStringsControllerTest {
     void testRoundTrip() throws Exception {
         String parseRequest = objectMapper.writeValueAsString(Map.of("content", VALID_XCSTRINGS));
 
-        String parseResponse = mockMvc.perform(post("/backend/index.php/parse")
+        String parseResponse = mockMvc.perform(post("/api/parse")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(parseRequest))
             .andExpect(status().isOk())
@@ -191,7 +191,7 @@ class XCStringsControllerTest {
         
         String generateRequest = objectMapper.writeValueAsString(Map.of("data", data));
 
-        mockMvc.perform(post("/backend/index.php/generate")
+        mockMvc.perform(post("/api/generate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(generateRequest))
             .andExpect(status().isOk())

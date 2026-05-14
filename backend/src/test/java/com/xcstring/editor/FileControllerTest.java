@@ -35,7 +35,7 @@ class FileControllerTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        mockMvc.perform(post("/backend/index.php/auth/logout"));
+        mockMvc.perform(post("/api/auth/logout"));
     }
 
     private Cookie registerAndLogin(String email, String name, String password) throws Exception {
@@ -45,7 +45,7 @@ class FileControllerTest {
         registerMap.put("password", password);
         String registerBody = objectMapper.writeValueAsString(registerMap);
 
-        mockMvc.perform(post("/backend/index.php/auth/register")
+        mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(registerBody))
             .andExpect(status().isOk());
@@ -55,7 +55,7 @@ class FileControllerTest {
         loginMap.put("password", password);
         String loginBody = objectMapper.writeValueAsString(loginMap);
 
-        MvcResult loginResult = mockMvc.perform(post("/backend/index.php/auth/login")
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(loginBody))
             .andExpect(status().isOk())
@@ -71,7 +71,7 @@ class FileControllerTest {
         requestMap.put("is_public", false);
         String requestBody = objectMapper.writeValueAsString(requestMap);
 
-        MvcResult result = mockMvc.perform(post("/backend/index.php/files/save")
+        MvcResult result = mockMvc.perform(post("/api/files/save")
                 .cookie(cookie)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
@@ -94,7 +94,7 @@ class FileControllerTest {
         requestMap.put("is_public", false);
         String requestBody = objectMapper.writeValueAsString(requestMap);
 
-        mockMvc.perform(post("/backend/index.php/files/save")
+        mockMvc.perform(post("/api/files/save")
                 .cookie(cookie)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
@@ -111,7 +111,7 @@ class FileControllerTest {
         requestMap.put("is_public", false);
         String requestBody = objectMapper.writeValueAsString(requestMap);
 
-        mockMvc.perform(post("/backend/index.php/files/save")
+        mockMvc.perform(post("/api/files/save")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
             .andExpect(status().isBadRequest())
@@ -127,7 +127,7 @@ class FileControllerTest {
         requestMap.put("content", TEST_XCSTRINGS);
         String requestBody = objectMapper.writeValueAsString(requestMap);
 
-        mockMvc.perform(post("/backend/index.php/files/save")
+        mockMvc.perform(post("/api/files/save")
                 .cookie(cookie)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
@@ -144,7 +144,7 @@ class FileControllerTest {
         requestMap.put("content", "");
         String requestBody = objectMapper.writeValueAsString(requestMap);
 
-        mockMvc.perform(post("/backend/index.php/files/save")
+        mockMvc.perform(post("/api/files/save")
                 .cookie(cookie)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
@@ -165,7 +165,7 @@ class FileControllerTest {
         requestMap.put("comment", "Updated greeting");
         String requestBody = objectMapper.writeValueAsString(requestMap);
 
-        mockMvc.perform(post("/backend/index.php/files/update")
+        mockMvc.perform(post("/api/files/update")
                 .cookie(cookie)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
@@ -179,7 +179,7 @@ class FileControllerTest {
         createFile(cookie, "my-file-1.xcstrings", TEST_XCSTRINGS);
         createFile(cookie, "my-file-2.xcstrings", TEST_XCSTRINGS);
 
-        mockMvc.perform(get("/backend/index.php/files/my")
+        mockMvc.perform(get("/api/files/my")
                 .cookie(cookie))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
@@ -189,7 +189,7 @@ class FileControllerTest {
 
     @Test
     void testGetMyFilesNotAuthenticated() throws Exception {
-        mockMvc.perform(get("/backend/index.php/files/my"))
+        mockMvc.perform(get("/api/files/my"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.success").value(false));
     }
@@ -204,13 +204,13 @@ class FileControllerTest {
         requestMap.put("is_public", true);
         String requestBody = objectMapper.writeValueAsString(requestMap);
 
-        mockMvc.perform(post("/backend/index.php/files/save")
+        mockMvc.perform(post("/api/files/save")
                 .cookie(cookie)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(requestBody))
             .andExpect(status().isOk());
 
-        mockMvc.perform(get("/backend/index.php/files/public"))
+        mockMvc.perform(get("/api/files/public"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.files").isArray());
@@ -221,7 +221,7 @@ class FileControllerTest {
         Cookie cookie = registerAndLogin("filetest7@example.com", "File Test 7", "password123");
         Long fileId = createFile(cookie, "get-by-id.xcstrings", TEST_XCSTRINGS);
 
-        mockMvc.perform(get("/backend/index.php/files/{id}", fileId)
+        mockMvc.perform(get("/api/files/{id}", fileId)
                 .cookie(cookie))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
@@ -234,7 +234,7 @@ class FileControllerTest {
     void testGetFileByIdNonExistent() throws Exception {
         Cookie cookie = registerAndLogin("filetest8@example.com", "File Test 8", "password123");
 
-        mockMvc.perform(get("/backend/index.php/files/{id}", 999999)
+        mockMvc.perform(get("/api/files/{id}", 999999)
                 .cookie(cookie))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.success").value(false));
@@ -253,7 +253,7 @@ class FileControllerTest {
         shareMap.put("can_edit", false);
         String shareBody = objectMapper.writeValueAsString(shareMap);
 
-        mockMvc.perform(post("/backend/index.php/files/share")
+        mockMvc.perform(post("/api/files/share")
                 .cookie(ownerCookie)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(shareBody))
@@ -266,7 +266,7 @@ class FileControllerTest {
         Cookie ownerCookie = registerAndLogin("owner2@example.com", "Owner 2", "password123");
         Long fileId = createFile(ownerCookie, "shared-file-2.xcstrings", TEST_XCSTRINGS);
 
-        mockMvc.perform(get("/backend/index.php/files/{id}/shares", fileId)
+        mockMvc.perform(get("/api/files/{id}/shares", fileId)
                 .cookie(ownerCookie))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
@@ -286,13 +286,13 @@ class FileControllerTest {
         updateMap.put("content", updatedContent);
         String updateBody = objectMapper.writeValueAsString(updateMap);
 
-        mockMvc.perform(post("/backend/index.php/files/update")
+        mockMvc.perform(post("/api/files/update")
                 .cookie(cookie)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(updateBody))
             .andExpect(status().isOk());
 
-        mockMvc.perform(get("/backend/index.php/files/{id}/versions", fileId)
+        mockMvc.perform(get("/api/files/{id}/versions", fileId)
                 .cookie(cookie))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
@@ -304,7 +304,7 @@ class FileControllerTest {
         Cookie cookie = registerAndLogin("filetest10@example.com", "File Test 10", "password123");
         Long fileId = createFile(cookie, "stats-test.xcstrings", TEST_XCSTRINGS);
 
-        mockMvc.perform(get("/backend/index.php/files/{id}/version-stats", fileId)
+        mockMvc.perform(get("/api/files/{id}/version-stats", fileId)
                 .cookie(cookie))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
@@ -316,12 +316,12 @@ class FileControllerTest {
         Cookie cookie = registerAndLogin("filetest11@example.com", "File Test 11", "password123");
         Long fileId = createFile(cookie, "delete-test.xcstrings", TEST_XCSTRINGS);
 
-        mockMvc.perform(delete("/backend/index.php/files/{id}", fileId)
+        mockMvc.perform(delete("/api/files/{id}", fileId)
                 .cookie(cookie))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true));
 
-        mockMvc.perform(get("/backend/index.php/files/{id}", fileId)
+        mockMvc.perform(get("/api/files/{id}", fileId)
                 .cookie(cookie))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.success").value(false));
@@ -334,7 +334,7 @@ class FileControllerTest {
 
         Cookie otherCookie = registerAndLogin("other@example.com", "Other User", "password123");
 
-        mockMvc.perform(delete("/backend/index.php/files/{id}", fileId)
+        mockMvc.perform(delete("/api/files/{id}", fileId)
                 .cookie(otherCookie))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.success").value(false));
@@ -344,7 +344,7 @@ class FileControllerTest {
     void testGetSharedFiles() throws Exception {
         Cookie cookie = registerAndLogin("filetest12@example.com", "File Test 12", "password123");
 
-        mockMvc.perform(get("/backend/index.php/files/shared")
+        mockMvc.perform(get("/api/files/shared")
                 .cookie(cookie))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))

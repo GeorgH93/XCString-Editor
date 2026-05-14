@@ -18,7 +18,7 @@ import java.util.Map;
 import java.util.Set;
 
 @RestController
-@RequestMapping("/backend/index.php")
+@RequestMapping("/api")
 @RequiredArgsConstructor
 public class OAuth2Controller {
 

@@ -36,7 +36,7 @@ public abstract class AbstractOAuth2Provider implements OAuth2Provider {
         if (redirectUri != null && !redirectUri.toString().isEmpty()) {
             return redirectUri.toString();
         }
-        return baseAppUrl + "/backend/index.php/auth/oauth/" + providerName + "/callback";
+        return baseAppUrl + "/api/auth/oauth/" + providerName + "/callback";
     }
 
     protected String getRequiredConfig(String key) {

@@ -13,7 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 @RestController
-@RequestMapping("/backend/index.php")
+@RequestMapping("/api")
 @RequiredArgsConstructor
 public class FileController {
 
