@@ -91,7 +91,7 @@ public class OAuth2Controller {
             userInfoMap.put("avatar", userInfo.avatar());
 
             boolean allowRegistration = isRegistrationAllowed(provider);
-            authService.handleOAuth2Login(userInfoMap, provider, allowRegistration);
+            authService.handleOAuth2Login(userInfoMap, provider, allowRegistration, response);
 
             return new RedirectView(baseUrl + "?oauth_success=1");
         } catch (Exception e) {

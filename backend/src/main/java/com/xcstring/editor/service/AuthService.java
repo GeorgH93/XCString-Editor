@@ -124,38 +124,40 @@ public class AuthService {
     }
 
     @Transactional
-    public Map<String, Object> handleOAuth2Login(Map<String, Object> userInfo, String providerName, boolean allowRegistration) {
+    public Map<String, Object> handleOAuth2Login(Map<String, Object> userInfo, String providerName, boolean allowRegistration, HttpServletResponse response) {
         String providerId = (String) userInfo.get("provider_id");
         String email = (String) userInfo.get("email");
         String name = (String) userInfo.get("name");
         String avatar = (String) userInfo.get("avatar");
 
+        User user;
+
         Optional<OAuth2Account> oauthAccountOpt = oauth2AccountRepository.findByProviderAndProviderUserId(providerName, providerId);
 
         if (oauthAccountOpt.isPresent()) {
             OAuth2Account oauthAccount = oauthAccountOpt.get();
-            User user = oauthAccount.getUser();
+            user = oauthAccount.getUser();
 
             if (user == null) {
                 throw new RuntimeException("User account not found");
             }
 
             updateUserFromOAuth2(user, name, avatar);
+        } else {
+            Optional<User> existingUserOpt = userRepository.findByEmail(email);
 
-            return buildUserResponse(user);
+            if (existingUserOpt.isPresent()) {
+                user = existingUserOpt.get();
+                linkOAuth2Account(user.getId(), providerName, providerId);
+                updateUserFromOAuth2(user, name, avatar);
+            } else {
+                user = createUserFromOAuth2(userInfo, providerName, allowRegistration);
+            }
         }
 
-        Optional<User> existingUserOpt = userRepository.findByEmail(email);
+        sessionService.createSession(user, response);
 
-        if (existingUserOpt.isPresent()) {
-            User existingUser = existingUserOpt.get();
-            linkOAuth2Account(existingUser.getId(), providerName, providerId);
-            updateUserFromOAuth2(existingUser, name, avatar);
-
-            return buildUserResponse(existingUser);
-        }
-
-        return createUserFromOAuth2(userInfo, providerName, allowRegistration);
+        return buildUserResponse(user);
     }
 
     @Transactional(readOnly = true)
@@ -386,7 +388,7 @@ public class AuthService {
         userRepository.save(user);
     }
 
-    private Map<String, Object> createUserFromOAuth2(Map<String, Object> userInfo, String providerName, boolean allowRegistration) {
+    private User createUserFromOAuth2(Map<String, Object> userInfo, String providerName, boolean allowRegistration) {
         String email = (String) userInfo.get("email");
         String name = (String) userInfo.get("name");
         String avatar = (String) userInfo.get("avatar");
@@ -410,7 +412,7 @@ public class AuthService {
 
         convertPendingSharesForNewUser(email, user.getId());
 
-        return buildUserResponse(user);
+        return user;
     }
 
     private Map<String, Object> buildUserResponse(User user) {
