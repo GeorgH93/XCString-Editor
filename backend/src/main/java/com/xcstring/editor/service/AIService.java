@@ -56,8 +56,8 @@ public class AIService {
             providerInfo.put("name", name);
             providerInfo.put("models", config.getModels());
             providerInfo.put("capabilities", isDeepL(name)
-                ? Arrays.asList("translate", "batch_translate")
-                : Arrays.asList("translate", "batch_translate", "proofread", "batch_proofread"));
+                ? Collections.singletonList("translate")
+                : Arrays.asList("translate", "proofread"));
             providers.put(name, providerInfo);
         }
     }
@@ -112,121 +112,7 @@ public class AIService {
         }
     }
 
-    public String translate(String text, String sourceLanguage, String targetLanguage,
-                           List<Map<String, Object>> context, String stringKey,
-                           String provider, String model) {
-        if (!isEnabled()) {
-            throw new RuntimeException("AI features are not enabled");
-        }
-
-        ResolvedProvider resolved = resolveProvider(provider, model);
-
-        if (isDeepL(resolved.provider)) {
-            return deepLTranslate(Collections.singletonList(text), sourceLanguage, 
-                targetLanguage, resolved.model, resolved.config).get(0);
-        }
-
-        String prompt = buildTranslationPrompt(text, sourceLanguage, targetLanguage, context);
-        return (String) makeAIRequest(resolved.provider, resolved.model, prompt, resolved.config, false);
-    }
-
-    @SuppressWarnings("unchecked")
-    public Map<String, Object> proofread(String text, String language,
-                                         List<Map<String, Object>> context, String stringKey,
-                                         String provider, String model) {
-        if (!isEnabled()) {
-            throw new RuntimeException("AI features are not enabled");
-        }
-
-        ResolvedProvider resolved = resolveProvider(provider, model);
-
-        if (isDeepL(resolved.provider)) {
-            throw new RuntimeException("DeepL does not support proofreading. Please select a different provider.");
-        }
-
-        String prompt = buildProofreadingPrompt(text, language, context);
-        Object result = makeAIRequest(resolved.provider, resolved.model, prompt, resolved.config, true);
-        
-        return (Map<String, Object>) result;
-    }
-
-    private String buildTranslationPrompt(String text, String sourceLanguage, String targetLanguage,
-                                          List<Map<String, Object>> context) {
-        StringBuilder contextStr = new StringBuilder();
-        if (context != null && !context.isEmpty()) {
-            contextStr.append("\n\nContext (related strings):\n");
-            for (Map<String, Object> item : context) {
-                contextStr.append("- Key: ").append(item.get("key"))
-                    .append(", ").append(sourceLanguage).append(": \"")
-                    .append(item.get("source")).append("\", ")
-                    .append(targetLanguage).append(": \"")
-                    .append(item.get("target")).append("\"\n");
-            }
-        }
-
-        return "Translate the following text from " + sourceLanguage + " to " + targetLanguage + ". This is for a mobile/desktop application localization.\n" +
-            "\n" +
-            "Source text: \"" + text + "\"\n" +
-            "Source language: " + sourceLanguage + "\n" +
-            "Target language: " + targetLanguage + "\n" +
-            contextStr.toString() + "\n" +
-            "Instructions:\n" +
-            "- Provide only the translated text, no explanations\n" +
-            "- Consider the context of mobile/desktop application UI\n" +
-            "- Use an informal, friendly tone appropriate for modern mobile/desktop applications.\n" +
-            "- If the target language distinguishes between formal and informal second-person address (T/V distinction), always use the informal form.\n" +
-            "- Never mix formal and informal address within the same translation.\n" +
-            "- Use the corresponding informal verb conjugations and possessive forms.\n" +
-            "- Be consistent throughout all translations.\n" +
-            "- Keep placeholders and formatting intact if any\n" +
-            "- Consider the context of mobile/desktop application UI\n" +
-            "- Do not translate product names, trademarks, or proper nouns unless they have an established localized form in " + targetLanguage + "\n" +
-            "- Use the 'key' field to understand the context and purpose of each string\n" +
-            "- Do not omit or add entries\n" +
-            "- Ensure all output is valid, properly escaped JSON\n" +
-            "- Do not modify the 'key' values\n" +
-            "- If it's a technical term or brand name, consider if it should remain untranslated\n" +
-            "\n" +
-            "Translation:";
-    }
-
-    private String buildProofreadingPrompt(String text, String language, List<Map<String, Object>> context) {
-        StringBuilder contextStr = new StringBuilder();
-        if (context != null && !context.isEmpty()) {
-            contextStr.append("\n\nContext (related strings in the same language):\n");
-            for (Map<String, Object> item : context) {
-                contextStr.append("- Key: ").append(item.get("key"))
-                    .append(", Text: \"").append(item.get("text")).append("\"\n");
-            }
-        }
-
-        return "Review the following localized text for a mobile/desktop application. Evaluate the quality and provide feedback.\n" +
-            "\n" +
-            "Text to review: \"" + text + "\"\n" +
-            "Language: " + language + "\n" +
-            contextStr.toString() + "\n" +
-            "Please respond with a JSON object containing:\n" +
-            "{\n" +
-            "  \"status\": \"good\" | \"wording\" | \"issue\",\n" +
-            "  \"feedback\": \"explanation of any issues or suggestions\"\n" +
-            "}\n" +
-            "\n" +
-            "Status meanings:\n" +
-            "- \"good\": The text is well-written and appropriate\n" +
-            "- \"wording\": The text is understandable but could be improved with better wording\n" +
-            "- \"issue\": There are serious problems (grammar, unclear meaning, inappropriate tone, etc.)\n" +
-            "\n" +
-            "Consider:\n" +
-            "- Grammar and spelling\n" +
-            "- Clarity and naturalness\n" +
-            "- Appropriateness for UI context\n" +
-            "- Consistency with typical app terminology\n" +
-            "- Cultural appropriateness\n" +
-            "\n" +
-            "Response:";
-    }
-
-    private Object makeAIRequest(String provider, String model, String prompt, 
+    private Object makeAIRequest(String provider, String model, String prompt,
                                   ProviderAiConfig config, boolean expectJson) {
         switch (provider) {
             case "openai":
@@ -507,20 +393,6 @@ public class AIService {
         }
     }
 
-    private List<String> deepLTranslate(List<String> texts, String sourceLanguage, 
-                                         String targetLanguage, String model, 
-                                         ProviderAiConfig config) {
-        List<Map<String, Object>> translations = callDeepLApi(texts, sourceLanguage, 
-            targetLanguage, model, config);
-        
-        List<String> result = new ArrayList<>();
-        for (Map<String, Object> t : translations) {
-            result.add(((String) t.get("text")).trim());
-        }
-        
-        return result;
-    }
-
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> deepLBatchTranslate(List<Map<String, Object>> items, 
                                                           String sourceLanguage, 
@@ -550,98 +422,6 @@ public class AIService {
         }
 
         return result;
-    }
-
-    public List<Map<String, Object>> buildContext(String currentKey, Map<String, Object> allStrings, 
-                                                   String language, int maxItems) {
-        List<Map<String, Object>> context = new ArrayList<>();
-        int count = 0;
-
-        if (allStrings == null) {
-            return context;
-        }
-
-        for (Map.Entry<String, Object> entry : allStrings.entrySet()) {
-            if (count >= maxItems || entry.getKey().equals(currentKey)) {
-                continue;
-            }
-
-            Map<String, Object> stringData = (Map<String, Object>) entry.getValue();
-            if (stringData != null && stringData.get("localizations") != null) {
-                Map<String, Object> localizations = (Map<String, Object>) stringData.get("localizations");
-                if (localizations.get(language) != null) {
-                    Map<String, Object> langData = (Map<String, Object>) localizations.get(language);
-                    if (langData.get("stringUnit") != null) {
-                        Map<String, Object> stringUnit = (Map<String, Object>) langData.get("stringUnit");
-                        if (stringUnit.get("value") != null) {
-                            Map<String, Object> contextItem = new LinkedHashMap<>();
-                            contextItem.put("key", entry.getKey());
-                            contextItem.put("text", stringUnit.get("value"));
-                            context.add(contextItem);
-                            count++;
-                        }
-                    }
-                }
-            }
-        }
-
-        return context;
-    }
-
-    @SuppressWarnings("unchecked")
-    public List<Map<String, Object>> buildTranslationContext(String currentKey, 
-                                                              Map<String, Object> allStrings,
-                                                              String sourceLanguage, 
-                                                              String targetLanguage, 
-                                                              int maxItems) {
-        List<Map<String, Object>> context = new ArrayList<>();
-        int count = 0;
-
-        if (allStrings == null) {
-            return context;
-        }
-
-        for (Map.Entry<String, Object> entry : allStrings.entrySet()) {
-            if (count >= maxItems || entry.getKey().equals(currentKey)) {
-                continue;
-            }
-
-            Map<String, Object> stringData = (Map<String, Object>) entry.getValue();
-            if (stringData != null && stringData.get("localizations") != null) {
-                Map<String, Object> localizations = (Map<String, Object>) stringData.get("localizations");
-                
-                String sourceText = null;
-                String targetText = null;
-                
-                if (localizations.get(sourceLanguage) != null) {
-                    Map<String, Object> sourceLangData = (Map<String, Object>) localizations.get(sourceLanguage);
-                    if (sourceLangData.get("stringUnit") != null) {
-                        Map<String, Object> sourceStringUnit = (Map<String, Object>) sourceLangData.get("stringUnit");
-                        sourceText = (String) sourceStringUnit.get("value");
-                    }
-                }
-                
-                if (localizations.get(targetLanguage) != null) {
-                    Map<String, Object> targetLangData = (Map<String, Object>) localizations.get(targetLanguage);
-                    if (targetLangData.get("stringUnit") != null) {
-                        Map<String, Object> targetStringUnit = (Map<String, Object>) targetLangData.get("stringUnit");
-                        targetText = (String) targetStringUnit.get("value");
-                    }
-                }
-
-                if (sourceText != null && !sourceText.isEmpty() && 
-                    targetText != null && !targetText.isEmpty()) {
-                    Map<String, Object> contextItem = new LinkedHashMap<>();
-                    contextItem.put("key", entry.getKey());
-                    contextItem.put("source", sourceText);
-                    contextItem.put("target", targetText);
-                    context.add(contextItem);
-                    count++;
-                }
-            }
-        }
-
-        return context;
     }
 
     @SuppressWarnings("unchecked")

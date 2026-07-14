@@ -2618,7 +2618,7 @@ class XCStringEditor {
     getSelectedProviderCapabilities() {
         if (!this.aiConfig || !this.selectedAIProvider) return [];
         const provider = this.aiConfig.ai_providers[this.selectedAIProvider];
-        return provider?.capabilities || ['translate', 'batch_translate', 'proofread', 'batch_proofread'];
+        return provider?.capabilities || ['translate', 'proofread'];
     }
 
     updateProofreadVisibility() {
@@ -2954,48 +2954,30 @@ class XCStringEditor {
     }
 
     async translateText(text, sourceLanguage, targetLanguage, stringKey) {
-        const response = await fetch('/api/ai/translate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                text: text,
-                source_language: sourceLanguage,
-                target_language: targetLanguage,
-                string_key: stringKey,
-                context_strings: this.data.strings,
-                provider: this.selectedAIProvider,
-                model: this.selectedAIModel
-            })
-        });
+        const translations = await this.batchTranslateText(
+            [{ key: stringKey, text: text }],
+            sourceLanguage,
+            targetLanguage
+        );
 
-        const result = await response.json();
-        if (!result.success) {
-            throw new Error(result.error || 'Translation failed');
+        if (!translations || translations.length === 0) {
+            throw new Error('Translation failed: no result returned');
         }
 
-        return result.translation;
+        return translations[0].translation;
     }
 
     async proofreadText(text, language, stringKey) {
-        const response = await fetch('/api/ai/proofread', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                text: text,
-                language: language,
-                string_key: stringKey,
-                context_strings: this.data.strings,
-                provider: this.selectedAIProvider,
-                model: this.selectedAIModel
-            })
-        });
+        const reviews = await this.batchProofreadText(
+            [{ key: stringKey, text: text }],
+            language
+        );
 
-        const result = await response.json();
-        if (!result.success) {
-            throw new Error(result.error || 'Proofreading failed');
+        if (!reviews || reviews.length === 0) {
+            throw new Error('Proofreading failed: no result returned');
         }
 
-        return result.review;
+        return reviews[0];
     }
 
     async retryWithBackoff(asyncFn, maxRetries = 3, baseDelay = 1000) {
