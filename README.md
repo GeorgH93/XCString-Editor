@@ -111,7 +111,27 @@ All configuration is managed through `application.yml` and can be overridden via
 - **AI_ENABLED**: Enable/disable AI features (default: `false`)
 - **AI_DEFAULT_PROVIDER**: Default AI provider (`openai`, `anthropic`, `openai-compatible`, `zai`, `deepl`)
 - **AI_DEFAULT_MODEL**: Default model to use
+- **AI_PROMPTS_DIR**: Directory for customizable prompt templates (default: `./config/prompts`)
 - Provider-specific settings: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc.
+
+#### Customizing AI Prompts
+
+The translation and proofreading prompts are bundled inside the JAR and extracted to `AI_PROMPTS_DIR` on first startup:
+
+```
+./config/prompts/
+├── translation.txt      # Prompt template for AI translation
+└── proofreading.txt     # Prompt template for AI proofreading
+```
+
+These files are **never overwritten** once they exist, so you can edit them freely to change tone, wording, target audience, or any other instruction. Templates use `${var}` placeholders that are substituted at runtime:
+
+| Template | Placeholders |
+| --- | --- |
+| `translation.txt` | `${sourceLanguage}`, `${targetLanguage}`, `${itemsJson}` |
+| `proofreading.txt` | `${language}`, `${itemsJson}` |
+
+After editing, restart the application to load the updated templates. To reset to defaults, delete the files and restart — they will be re-extracted from the JAR.
 
 ### OAuth2 Authentication
 - **OAUTH2_ENABLED**: Enable/disable OAuth2 authentication (default: `false`)

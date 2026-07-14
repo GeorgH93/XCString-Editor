@@ -101,6 +101,7 @@ public class AppProperties {
         private boolean enabled = false;
         private String defaultProvider = "openai";
         private String defaultModel = "gpt-4o-mini";
+        private String promptsDir = "./config/prompts";
         private ProviderAiConfig openai = new ProviderAiConfig();
         private ProviderAiConfig anthropic = new ProviderAiConfig();
         private ProviderAiConfig openaiCompatible = new ProviderAiConfig();

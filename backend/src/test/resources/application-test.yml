@@ -35,5 +35,6 @@ xcstring:
     enabled: false
   ai:
     enabled: false
+    prompts-dir: ${java.io.tmpdir}/xcstring-test-prompts
   app:
     base-url: http://localhost:8080

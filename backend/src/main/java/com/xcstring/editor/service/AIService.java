@@ -18,10 +18,12 @@ import java.util.concurrent.TimeUnit;
 public class AIService {
 
     private final AppProperties appProperties;
+    private final PromptService promptService;
     private final Gson gson = new GsonBuilder().create();
 
-    public AIService(AppProperties appProperties) {
+    public AIService(AppProperties appProperties, PromptService promptService) {
         this.appProperties = appProperties;
+        this.promptService = promptService;
     }
 
     public boolean isEnabled() {
@@ -498,44 +500,7 @@ public class AIService {
             itemsJson = items.toString();
         }
 
-        return "Translate the following strings from " + sourceLanguage + " to " + targetLanguage + ". This is for a mobile/desktop application localization.\n" +
-            "\n" +
-            "Input data structure:\n" +
-            itemsJson + "\n" +
-            "\n" +
-            "Instructions:\n" +
-            "- Translate each 'text' field from " + sourceLanguage + " to " + targetLanguage + "\n" +
-            "- Consider the context of mobile/desktop application UI\n" +
-            "- Use an informal, friendly tone appropriate for modern mobile/desktop applications.\n" +
-            "- If the target language distinguishes between formal and informal second-person address (T/V distinction), always use the informal form.\n" +
-            "- Never mix formal and informal address within the same translation.\n" +
-            "- Use the corresponding informal verb conjugations and possessive forms.\n" +
-            "- Be consistent throughout all translations.\n" +
-            "- Keep placeholders and formatting intact if any\n" +
-            "- Consider the context of mobile/desktop application UI\n" +
-            "- Do not translate product names, trademarks, or proper nouns unless they have an established localized form in " + targetLanguage + "\n" +
-            "- Use the 'key' field to understand the context and purpose of each string\n" +
-            "- Do not omit or add entries\n" +
-            "- Ensure all output is valid, properly escaped JSON\n" +
-            "- Do not modify the 'key' values\n" +
-            "\n" +
-            "Respond with a JSON object in this exact format:\n" +
-            "{\n" +
-            "  \"translations\": [\n" +
-            "    {\n" +
-            "      \"key\": \"original_key_1\",\n" +
-            "      \"translation\": \"translated_text_1\"\n" +
-            "    },\n" +
-            "    {\n" +
-            "      \"key\": \"original_key_2\", \n" +
-            "      \"translation\": \"translated_text_2\"\n" +
-            "    }\n" +
-            "  ]\n" +
-            "}\n" +
-            "\n" +
-            "Important:\n" +
-            "- Respond only with valid JSON\n" +
-            "- Do not include explanations or additional fields";
+        return promptService.renderTranslationPrompt(sourceLanguage, targetLanguage, itemsJson);
     }
 
     private String buildBatchProofreadingPrompt(List<Map<String, Object>> items, String language) {
@@ -546,41 +511,6 @@ public class AIService {
             itemsJson = items.toString();
         }
 
-        return "Review the following localized texts for a mobile/desktop application. Evaluate the quality and provide feedback for each.\n" +
-            "\n" +
-            "Input data structure:\n" +
-            itemsJson + "\n" +
-            "\n" +
-            "Language: " + language + "\n" +
-            "\n" +
-            "For each text, consider:\n" +
-            "- Grammar and spelling\n" +
-            "- Clarity and naturalness  \n" +
-            "- Appropriateness for UI context\n" +
-            "- Consistency with typical app terminology\n" +
-            "- Cultural appropriateness\n" +
-            "\n" +
-            "Respond with a JSON object in this exact format:\n" +
-            "{\n" +
-            "  \"reviews\": [\n" +
-            "    {\n" +
-            "      \"key\": \"original_key_1\",\n" +
-            "      \"status\": \"good\",\n" +
-            "      \"feedback\": \"explanation or empty string if good\"\n" +
-            "    },\n" +
-            "    {\n" +
-            "      \"key\": \"original_key_2\",\n" +
-            "      \"status\": \"wording\", \n" +
-            "      \"feedback\": \"explanation of suggestions\"\n" +
-            "    }\n" +
-            "  ]\n" +
-            "}\n" +
-            "\n" +
-            "Status meanings:\n" +
-            "- \"good\": The text is well-written and appropriate\n" +
-            "- \"wording\": The text is understandable but could be improved with better wording\n" +
-            "- \"issue\": There are serious problems (grammar, unclear meaning, inappropriate tone, etc.)\n" +
-            "\n" +
-            "Important: Respond only with valid JSON, no other text.";
+        return promptService.renderProofreadingPrompt(language, itemsJson);
     }
 }

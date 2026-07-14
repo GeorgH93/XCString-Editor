@@ -83,6 +83,7 @@ xcstring:
     enabled: ${AI_ENABLED:false}
     default-provider: ${AI_DEFAULT_PROVIDER:openai}
     default-model: ${AI_DEFAULT_MODEL:gpt-4o-mini}
+    prompts-dir: ${AI_PROMPTS_DIR:./config/prompts}
     openai:
       enabled: ${OPENAI_ENABLED:false}
       api-key: ${OPENAI_API_KEY:}

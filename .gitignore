@@ -5,6 +5,9 @@ CLAUDE.md
 # Data directory
 data/
 
+# Runtime config (extracted prompt templates, etc.)
+config/
+
 # IDE files
 .vscode/
 .idea/
